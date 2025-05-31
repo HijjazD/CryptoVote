@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Navbar from '../components/Navbar'
 import Banner from '../components/Banner'
 import Polls from '../components/Polls'
+import Footer from '../components/Footer'
 import { useDispatch, useSelector } from 'react-redux'
 import { globalActions } from '../store/globalSlices'
 
@@ -30,14 +31,12 @@ const HomePage = () => {
       <div className='px-4'>
         <Navbar />
       </div>
-      <div className='pt-30'>
-        <Banner/>
-      </div>
-      <div className='pt-30'>
+      <div className="pt-30 flex-grow">
+        <Banner />
         <Polls polls={polls} />
+        <CreatePoll />
       </div>
-      <CreatePoll/>
-      
+      <Footer /> 
     </div>
   )
 }
