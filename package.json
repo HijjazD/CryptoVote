@@ -28,9 +28,6 @@
   "devDependencies": {
     "nodemon": "^3.1.10"
   },
-  "directories": {
-    "test": "test"
-  },
   "engines": {
     "node": "18.20.8"
   }
