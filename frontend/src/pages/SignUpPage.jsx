@@ -29,7 +29,7 @@ const SignUpPage = () => {
         <img
             src="/assets/images/cryptovote.png"
             alt="CryptoVote Logo"
-            className="absolute top-30 w-[200px] h-[200px] "
+            className="absolute top-24 w-[200px] h-[200px] z-50"
         />
 
         
