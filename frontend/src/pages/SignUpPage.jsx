@@ -24,23 +24,24 @@ const SignUpPage = () => {
     }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center px-4">
-      
-        <img
-            src="/assets/images/cryptovote.png"
-            alt="CryptoVote Logo"
-            className="absolute top-24 w-[200px] h-[200px] z-50"
-        />
-
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative">
+          {/* Logo Section */}
+          <div className="mb-6">
+            <img
+              src="/assets/images/cryptovote.png"
+              alt="CryptoVote Logo"
+              className="w-[200px] h-[200px]"
+            />
+          </div>
         
-        <div className="flex-grow flex items-center justify-center px-4">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className='max-w-md w-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 backdrop-blur-xl 
-                rounded-2xl shadow-xl overflow-hidden'
-            >
+          {/* Form Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className='max-w-md w-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 backdrop-blur-xl 
+            rounded-2xl shadow-xl overflow-hidden'
+          >
                 <div className="p-8" >
                     <h2 className='text-3xl font-bold mb-6 text-center text-gray-400'>
                         Create Account
@@ -80,7 +81,6 @@ const SignUpPage = () => {
                     </p>
                 </div>
             </motion.div>
-        </div>
     </div>
   )
 }
