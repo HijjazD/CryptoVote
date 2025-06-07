@@ -1,13 +1,21 @@
 import { User } from '../models/user.model.js'
 import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie.js'
 import { generateChallengeCookie } from '../utils/generateChallengeCookie.js';
-import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail } from '../mailtrap/emails.js'
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, voteConfirmationEmail } from '../smtp/emails.js'
 import { generateRegistrationOptions, generateAuthenticationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { webcrypto } from 'crypto';
-import base64url from 'base64url';
+import {ethers, JsonRpcProvider, Wallet} from 'ethers';
+import dotenv from 'dotenv'
 
 import crypto from "crypto"
 import bcryptjs from 'bcryptjs'
+
+dotenv.config()
+
+const PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY;
+const RPC_URL = process.env.GANACHE_RPC_URL;
+const provider = new JsonRpcProvider(RPC_URL);
+const wallet = new Wallet(PRIVATE_KEY, provider);
 
 if(!globalThis.crypto){
     globalThis.crypto = webcrypto
@@ -23,7 +31,11 @@ export const signup = async (req, res) => {
 
         const userAlreadyExist = await User.findOne({studentMatric})
         if(userAlreadyExist) {
-            return res.status(400).json({success:false, message:"User already exist"})
+            if(userAlreadyExist.isEmailVerified) {
+                return res.status(400).json({success:false, message:"User already exist"})
+            }else{
+                await User.findByIdAndDelete(userAlreadyExist._id)
+            }
         }
 
         const verificationToken = Math.floor(100000 + Math.random() * 900000).toString()
@@ -37,11 +49,10 @@ export const signup = async (req, res) => {
 
         await user.save()
 
-        //jwt
-        generateTokenAndSetCookie(res,user._id)
+
         console.log("email sent to: ", user.email)
         console.log("verification code: ", user.verificationToken)
-        //sendVerificationEmail(user.email, verificationToken)
+        await sendVerificationEmail(user.email, verificationToken)
 
         res.status(201).json({
             success: true,
@@ -83,8 +94,8 @@ export const verifyEmail = async (req, res) => {
         user.resetPasswordToken = createPassToken
         user.resetPasswordExpiresAt = createPassTokenExpiresAt
         await user.save()
-
-        //await sendWelcomeEmail(user.email)
+        generateTokenAndSetCookie(res,user._id)
+        await sendWelcomeEmail(user.email)
 
         res.status(200).json({
             success: true,
@@ -390,8 +401,6 @@ export const verifyAuthPasskey = async (req, res) => {
     }
 }
 
-
-
 export const logout = async (req, res) => {
     res.clearCookie("token")
     res.status(200).json({success:true, message:"Logged out successfully"})
@@ -415,7 +424,7 @@ export const forgotPassword = async (req, res) => {
 
         console.log("resetToken", resetToken)
         //send email
-        //await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`)
+        await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`)
 
         res.status(200).json({ success: true, message: "Password reset link sent to your email" })
     } catch (error) {
@@ -446,13 +455,57 @@ export const resetPassword = async (req, res) => {
 
         await user.save()
 
-        //await sendResetSuccessEmail(user.email)
+        await sendResetSuccessEmail(user.email)
         console.log("congrats you have successfully reset ur password: ", password)
         res.status(200).json({ success: true, message: "Password reset successfully" })
 
     } catch (error) {
         console.log("Error in resetPassword: ", error)
         res.status(400).json({ success: false, message: error.message })
+    }
+}
+
+export const sendVoteConfirmationEmail = async (req, res) => {
+    const { email } = req.body
+
+    try {
+        const user = await User.findOne({email});
+        user.hasVoted = true
+        await voteConfirmationEmail(email)
+        await user.save()
+    } catch (error) {
+        res.status(400).json({success:false, message: error.message})
+    }
+}
+
+export const claimToken = async(req, res) => {
+    try {
+        const { recipientAddress, userId } = req.body;
+
+        if (!recipientAddress || !ethers.isAddress(recipientAddress)) {
+        return res.status(400).json({ error: 'Invalid recipient address' });
+        }
+
+        const tx = await wallet.sendTransaction({
+            to: recipientAddress,
+            value: ethers.parseEther("500"), // amount of Ganache ETH to send
+        });
+
+        await tx.wait();
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        user.publicAddress=recipientAddress
+        user.hasClaim=true
+
+        await user.save()
+
+        res.status(200).json({ success: true, txHash: tx.hash });
+    } catch (err) {
+        console.error("Faucet error:", err);
+        res.status(500).json({ error: 'Faucet failed' });
     }
 }
 
