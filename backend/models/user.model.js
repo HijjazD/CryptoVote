@@ -32,6 +32,26 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    publicAddress: {
+        type: String,
+        default: null,
+    },
+    hasVoted: {
+        type: Boolean,
+        default: false,
+    },
+    isAdmin: {
+        type: Boolean,
+        default: false,
+    },
+    hasClaim: {
+        type: Boolean,
+        default: false,
+    },
+    isContestant: {
+        type: Boolean,
+        default: false,
+    },
     credentials: { type: [credentials], default: [] }, 
     verificationToken: String,
     verificationTokenExpiresAt: Date,
