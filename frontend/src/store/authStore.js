@@ -14,7 +14,8 @@ export const useAuthStore = create((set) => ({
     isLoading:false,
     isCheckingAuth:true,
     message: null,
-
+    txHash: null,
+    setUser: (user) => set({ user }), 
     signup: async(studentMatric) => {
         set({isLoading:true, error:null})
         try {
@@ -177,6 +178,42 @@ export const useAuthStore = create((set) => ({
                 error: error.response?.data?.error || error.message || "Unexpected error",
                 isLoading: false,
             });
+        }
+    },
+
+    voteConfirmationEmail: async (email) => {
+        try {
+            await axios.post(`${API_URL}/voteConfirmed`, {email})
+            
+        } catch (error) {
+            set({error:error.response.data.message || "Error in voting:"})
+            throw error
+        }
+    },
+
+    claimToken: async (recipientAddress, userId) => {
+        set({ isLoading: true, error: null, message: null, txHash: null });
+        try {
+            const response = await axios.post(`${API_URL}/claimToken`, { recipientAddress, userId });
+
+            if (response.data && response.data.txHash) {
+                set({
+                    isLoading: false,
+                    message: "Token claimed successfully!",
+                    txHash: response.data.txHash,
+                });
+            } else {
+                set({
+                    isLoading: false,
+                    error: "Token claim failed.",
+                });
+            }
+        } catch (error) {
+            set({
+                isLoading: false,
+                error: error.response?.data?.message || "Error claiming token",
+            });
+            throw error;
         }
     },
 
