@@ -51,16 +51,15 @@ const LoginPage = () => {
 
 
 	return (
-		<div className="min-h-screen relative flex items-center justify-center px-4">
-			{/* Positioned image */}
-			<img
-				src="/assets/images/cryptovote.png"
-				alt="CryptoVote Logo"
-				className="absolute top-20 w-[200px] h-[200px] "
-			/>
-
-			{/* Centered form */}
-			<div className="flex-grow flex items-center justify-center px-4">
+		<div className="min-h-screen flex flex-col items-center justify-center px-4">
+		    {/* Logo at the top */}
+		    <div className="mb-6">
+		      <img
+		        src="/assets/images/cryptovote.png"
+		        alt="CryptoVote Logo"
+		        className="w-[200px] h-[200px]"
+		      />
+		    </div>
 				
 				<motion.div 
 					initial={{ opacity: 0, y: 20 }}
@@ -143,7 +142,6 @@ const LoginPage = () => {
 						</p>
 					</div>
 				</motion.div>
-			</div>
 		</div>
 	)
 }
