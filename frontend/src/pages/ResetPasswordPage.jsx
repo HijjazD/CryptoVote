@@ -42,7 +42,7 @@ const ResetPasswordPage = () => {
 					transition={{ duration: 0.5 }}
 					className='bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-md'
 				>
-                    <h2 className='text-3xl font-bold mb-6 text-center bg-gradient-to-r from-green-400 to-emerald-500 text-transparent bg-clip-text'>
+                    <h2 className='text-3xl font-bold mb-6 text-center text-gray-400'>
                         Reset Password
                     </h2>
                     {error && <p className='text-red-500 text-sm mb-4'>{error}</p>}
@@ -70,7 +70,10 @@ const ResetPasswordPage = () => {
                         <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className='w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200'
+                            className="mt-5 w-full py-3 px-4 bg-gradient-to-r from-gray-600 to-gray-300 text-black 
+                            font-bold rounded-lg shadow-lg hover:from-gray-700 hover:to-gray-400 
+                            focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 
+                            focus:ring-offset-gray-900 transition duration-200"
                             type='submit'
                             disabled={isLoading}
                         >
