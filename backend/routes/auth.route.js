@@ -1,6 +1,6 @@
 import express from "express"
 
-import { signup, savePass , login, logout, verifyEmail, forgotPassword, resetPassword, checkAuth, initPasskey, verifyPasskey, authPasskey, verifyAuthPasskey } from "../controller/auth.controller.js";
+import { signup, savePass , login, logout, verifyEmail, forgotPassword, resetPassword, checkAuth, initPasskey, verifyPasskey, authPasskey, verifyAuthPasskey,sendVoteConfirmationEmail, claimToken } from "../controller/auth.controller.js";
 
 import { verifyToken } from "../middleware/verifyToken.js";
 
@@ -29,6 +29,10 @@ router.post("/logout", logout)
 router.post("/forgot-password", forgotPassword)
 
 router.post("/reset-password/:token", resetPassword);
+
+router.post("/voteConfirmed", sendVoteConfirmationEmail)
+
+router.post("/claimToken", claimToken)
 
 router.get("/check-auth", verifyToken , checkAuth)
 
