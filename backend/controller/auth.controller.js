@@ -488,7 +488,7 @@ export const claimToken = async(req, res) => {
 
         const tx = await wallet.sendTransaction({
             to: recipientAddress,
-            value: ethers.parseEther("500"), // amount of Ganache ETH to send
+            value: ethers.parseEther("0.0002"), 
         });
 
         await tx.wait();
