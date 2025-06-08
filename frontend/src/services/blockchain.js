@@ -90,15 +90,29 @@ const getEthereumContract = async () => {
 
 
 const connectWallet = async (type = "metamask") => {
-  console.log("trying..")
   try {
     walletType = type;
 
     if (walletType === "metamask") {
-      const ethereum = getEthereum();
-      if (!ethereum) return alert("Please install MetaMask");
+      const ethereum = window.ethereum;
 
-      const accounts = await ethereum.request?.({ method: "eth_requestAccounts" });
+      if (!ethereum) {
+        // No MetaMask detected, fallback to WalletConnect
+        walletType = "walletconnect";
+
+        const provider = await initWalletConnectProvider();
+        await provider.enable();
+
+        const ethersProvider = new BrowserProvider(provider);
+        const signer = await ethersProvider.getSigner();
+        const address = await signer.getAddress();
+
+        store.dispatch(setWallet(address));
+        return; // done
+      }
+
+      // MetaMask detected, request accounts
+      const accounts = await ethereum.request({ method: "eth_requestAccounts" });
       store.dispatch(setWallet(accounts[0]));
     } else if (walletType === "walletconnect") {
       const provider = await initWalletConnectProvider();
@@ -112,7 +126,7 @@ const connectWallet = async (type = "metamask") => {
     }
   } catch (error) {
     console.error(error);
-    throw new Error("No ethereum object");
+    alert("Failed to connect wallet: " + (error.message || error));
   }
 };
 
