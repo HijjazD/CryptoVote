@@ -51,7 +51,7 @@ const Navbar = () => {
             className="h-[48px] w-[130px] 
             sm:w-[148px] px-3 rounded-full text-sm font-bold
             transition-all duration-300 bg-[#1B5CFE] hover:bg-blue-300"
-            onClick={() => connectWallet("metamask")}
+            onClick={connectWallet}
           >
             Connect wallet
           </button>
