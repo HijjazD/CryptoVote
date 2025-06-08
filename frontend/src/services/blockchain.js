@@ -2,16 +2,44 @@ import { BrowserProvider, JsonRpcProvider, Contract, Wallet } from "ethers";
 import { store } from "../store";
 import { contractAbi, contractAddress } from "../constant/constant";
 import { globalActions } from "../store/globalSlices";
-
+import WalletConnectProvider from "@walletconnect/ethereum-provider";
 
 const APP_RPC_URL = import.meta.env.VITE_APP_RPC_URL;
 
 const { setWallet, setPolls, setPoll,setContestants } = globalActions;
 
+const WALLETCONNECT_PROJECT_ID = "4234666a862ca5511dd22e000d2bb773"
+
+let walletConnectProvider;
+let walletType = "metamask";
+
+const initWalletConnectProvider = async () => {
+  if (!walletConnectProvider) {
+    walletConnectProvider = await WalletConnectProvider.init({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [1], // change chain ID if needed
+      rpcMap: {
+        1: APP_RPC_URL,
+      },
+      showQrModal: true,
+    });
+
+    walletConnectProvider.on("disconnect", () => {
+      store.dispatch(setWallet(""));
+      walletType = "metamask";
+    });
+  }
+  return walletConnectProvider;
+};
+
 // Get window.ethereum
 const getEthereum = () => {
   if (typeof window !== "undefined") {
     return window.ethereum;
+  }
+
+  if (walletConnectProvider && walletConnectProvider.connected) {
+    return walletConnectProvider;
   }
   return null;
 };
@@ -28,65 +56,105 @@ export const getAddress = async() => {
 
 // Updated for ethers v6
 const getEthereumContract = async () => {
-  const ethereum = getEthereum();
-  if (!ethereum) throw new Error("Ethereum object not found. Make sure MetaMask is installed.");
-
-  const accounts = await ethereum.request?.({ method: "eth_accounts" });
-
-  let signer;
   let provider;
+  let signer;
 
-  if (accounts?.[0]) {
-    provider = new BrowserProvider(ethereum);
+  if (walletType === "metamask") {
+    const ethereum = getEthereum();
+    if (!ethereum) throw new Error("Ethereum object not found. Make sure MetaMask is installed.");
+
+    const accounts = await ethereum.request?.({ method: "eth_accounts" });
+
+    if (accounts?.[0]) {
+      provider = new BrowserProvider(ethereum);
+      signer = await provider.getSigner();
+    } else {
+      provider = new JsonRpcProvider(APP_RPC_URL);
+      const wallet = Wallet.createRandom().connect(provider);
+      signer = wallet;
+    }
+  } else if (walletType === "walletconnect") {
+    const providerWC = await initWalletConnectProvider();
+    await providerWC.enable();
+    provider = new BrowserProvider(providerWC);
     signer = await provider.getSigner();
   } else {
+    // fallback to readonly provider
     provider = new JsonRpcProvider(APP_RPC_URL);
-    const wallet = Wallet.createRandom().connect(provider); // read-only mode
+    const wallet = Wallet.createRandom().connect(provider);
     signer = wallet;
   }
 
   return new Contract(contractAddress, contractAbi, signer);
 };
 
-const connectWallet = async () => {
-  try {
-    const ethereum = getEthereum();
-    if (!ethereum) return alert("Please install MetaMask");
 
-    const accounts = await ethereum.request?.({ method: "eth_requestAccounts" });
-    store.dispatch(setWallet(accounts[0]));
+const connectWallet = async (type = "metamask") => {
+  console.log("trying..")
+  try {
+    walletType = type;
+
+    if (walletType === "metamask") {
+      const ethereum = getEthereum();
+      if (!ethereum) return alert("Please install MetaMask");
+
+      const accounts = await ethereum.request?.({ method: "eth_requestAccounts" });
+      store.dispatch(setWallet(accounts[0]));
+    } else if (walletType === "walletconnect") {
+      const provider = await initWalletConnectProvider();
+      await provider.enable();
+
+      const ethersProvider = new BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      const address = await signer.getAddress();
+
+      store.dispatch(setWallet(address));
+    }
   } catch (error) {
     console.error(error);
     throw new Error("No ethereum object");
   }
 };
 
+
 const checkWallet = async () => {
   try {
-    const ethereum = getEthereum();
-    if (!ethereum) return reportError("Please install Metamask");
+    if (walletType === "metamask") {
+      const ethereum = getEthereum();
+      if (!ethereum) return reportError("Please install MetaMask");
 
-    const accounts = await ethereum.request?.({ method: "eth_accounts" });
+      const accounts = await ethereum.request?.({ method: "eth_accounts" });
 
-    ethereum.on("chainChanged", () => {
-      window.location.reload();
-    });
+      ethereum.on("chainChanged", () => window.location.reload());
+      ethereum.on("accountsChanged", async (accounts) => {
+        store.dispatch(setWallet(accounts?.[0] || ""));
+        await checkWallet();
+      });
 
-    ethereum.on("accountsChanged", async () => {
-      store.dispatch(setWallet(accounts?.[0] || ""));
-      await checkWallet();
-    });
+      if (accounts?.length) {
+        store.dispatch(setWallet(accounts[0]));
+      } else {
+        store.dispatch(setWallet(""));
+        reportError("Please connect wallet, no accounts found.");
+      }
+    } else if (walletType === "walletconnect") {
+      if (!walletConnectProvider) return;
 
-    if (accounts?.length) {
-      store.dispatch(setWallet(accounts[0]));
-    } else {
-      store.dispatch(setWallet(""));
-      reportError("Please connect wallet, no accounts found.");
+      if (walletConnectProvider.connected) {
+        const ethersProvider = new BrowserProvider(walletConnectProvider);
+        const signer = await ethersProvider.getSigner();
+        const address = await signer.getAddress();
+        store.dispatch(setWallet(address));
+      } else {
+        store.dispatch(setWallet(""));
+        reportError("Please connect your WalletConnect wallet");
+      }
     }
   } catch (error) {
     reportError(error);
   }
 };
+
 
 const createPoll = async (PollParams) => {
   const ethereum = getEthereum();
@@ -207,6 +275,7 @@ const voteCandidate = async (id, cid ) => {
 
   try {
     const contract = await getEthereumContract();
+    //vote
     const tx = await contract.vote(id, cid);
     await tx.wait();
 
