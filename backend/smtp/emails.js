@@ -13,7 +13,7 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const EMAIL_USER = process.env.EMAIL_USER
+const EMAIL_USER = process.env.EMAIL_CUSTOM_DOMAIN
 
 
 export const sendVerificationEmail = async (email, verificationToken) => {
