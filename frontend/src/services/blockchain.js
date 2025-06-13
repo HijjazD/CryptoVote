@@ -2,19 +2,47 @@ import { BrowserProvider, JsonRpcProvider, Contract, Wallet } from "ethers";
 import { store } from "../store";
 import { contractAbi, contractAddress } from "../constant/constant";
 import { globalActions } from "../store/globalSlices";
+import WalletConnectProvider from "@walletconnect/ethereum-provider";
 
-
-const APP_RPC_URL = import.meta.env.VITE_APP_RPC_URL;
+const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM'
+const WALLETCONNECT_PROJECT_ID = "4234666a862ca5511dd22e000d2bb773"
 
 const { setWallet, setPolls, setPoll,setContestants } = globalActions;
 
-// Get window.ethereum
-const getEthereum = () => {
-  if (typeof window !== "undefined") {
-    return window.ethereum;
+let walletProvider = null;
+let signer = null;
+
+/**
+ * Initialize wallet provider using WalletConnect or MetaMask
+ */
+const getWalletProvider = async () => {
+  try {
+    // WalletConnect as primary
+    walletProvider = await WalletConnectProvider.init({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [CHAIN_ID],
+      showQrModal: true,
+      rpcMap: {
+        [CHAIN_ID]: APP_RPC_URL,
+      },
+    });
+
+    await walletProvider.enable();
+    return walletProvider;
+  } catch (wcError) {
+    console.warn("WalletConnect failed, trying MetaMask...", wcError);
+
+    // Fallback: MetaMask
+    if (typeof window !== "undefined" && window.ethereum) {
+      walletProvider = window.ethereum;
+      return walletProvider;
+    }
+
+    throw new Error("No wallet provider found. Please install MetaMask or use WalletConnect.");
   }
-  return null;
 };
+
+
 
 export const getAddress = async() => {
   const contract = await getEthereumContract();
@@ -28,71 +56,68 @@ export const getAddress = async() => {
 
 // Updated for ethers v6
 const getEthereumContract = async () => {
-  const ethereum = getEthereum();
-  if (!ethereum) throw new Error("Ethereum object not found. Make sure MetaMask is installed.");
-
-  const accounts = await ethereum.request?.({ method: "eth_accounts" });
-
-  let signer;
-  let provider;
-
-  if (accounts?.[0]) {
-    provider = new BrowserProvider(ethereum);
-    signer = await provider.getSigner();
-  } else {
-    provider = new JsonRpcProvider(APP_RPC_URL);
-    const wallet = Wallet.createRandom().connect(provider); // read-only mode
-    signer = wallet;
+  if (!walletProvider) {
+    throw new Error("Wallet not connected. Call connectWallet() first.");
   }
 
+  const provider = new BrowserProvider(walletProvider);
+  signer = await provider.getSigner();
   return new Contract(contractAddress, contractAbi, signer);
 };
 
 const connectWallet = async () => {
   try {
-    const ethereum = getEthereum();
-    if (!ethereum) return alert("Please install MetaMask");
+    const providerSource = await getWalletProvider(); // can be WalletConnect or MetaMask
+    const provider = new BrowserProvider(providerSource);
+    signer = await provider.getSigner();
+    const address = await signer.getAddress();
 
-    const accounts = await ethereum.request?.({ method: "eth_requestAccounts" });
-    store.dispatch(setWallet(accounts[0]));
-  } catch (error) {
-    console.error(error);
-    throw new Error("No ethereum object");
+    store.dispatch(setWallet(address));
+
+    // ✅ Add listeners if using WalletConnect (e.g. MetaMask mobile)
+    if (providerSource?.on && providerSource.isWalletConnect) {
+      providerSource.on("accountsChanged", (accounts) => {
+        const address = accounts?.[0] || "";
+        store.dispatch(setWallet(address));
+      });
+
+      providerSource.on("disconnect", () => {
+        store.dispatch(setWallet(""));
+        alert("Wallet disconnected.");
+      });
+
+      providerSource.on("chainChanged", () => {
+        window.location.reload();
+      });
+    }
+
+    return address;
+  } catch (err) {
+    console.error("Error connecting wallet:", err);
+    throw err;
   }
 };
 
 const checkWallet = async () => {
   try {
-    const ethereum = getEthereum();
-    if (!ethereum) return reportError("Please install Metamask");
-
-    const accounts = await ethereum.request?.({ method: "eth_accounts" });
-
-    ethereum.on("chainChanged", () => {
-      window.location.reload();
-    });
-
-    ethereum.on("accountsChanged", async () => {
-      store.dispatch(setWallet(accounts?.[0] || ""));
-      await checkWallet();
-    });
+    const provider = await getWalletProvider();
+    const accounts = provider.accounts || (await provider.request?.({ method: "eth_accounts" }));
 
     if (accounts?.length) {
       store.dispatch(setWallet(accounts[0]));
     } else {
       store.dispatch(setWallet(""));
-      reportError("Please connect wallet, no accounts found.");
+      console.warn("No accounts found. Please connect wallet.");
     }
   } catch (error) {
-    reportError(error);
+    console.error("checkWallet error:", error);
   }
 };
 
 const createPoll = async (PollParams) => {
-  const ethereum = getEthereum();
-  if (!ethereum) {
-    reportError("Please install Metamask");
-    return Promise.reject(new Error("Metamask not installed"));
+  if (!walletProvider) {
+    reportError("Wallet not connected");
+    return Promise.reject(new Error("Wallet not connected"));
   }
 
   try {
@@ -102,8 +127,8 @@ const createPoll = async (PollParams) => {
 
     await tx.wait();
 
-    const polls = await getPolls()
-    store.dispatch(setPolls(polls))
+    const polls = await getPolls();
+    store.dispatch(setPolls(polls));
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -112,11 +137,11 @@ const createPoll = async (PollParams) => {
   }
 };
 
+
 const updatePoll = async (id, PollParams) => {
-  const ethereum = getEthereum();
-  if (!ethereum) {
-    reportError("Please install Metamask");
-    return Promise.reject(new Error("Metamask not installed"));
+  if (!walletProvider) {
+    reportError("Wallet not connected");
+    return Promise.reject(new Error("Wallet not connected"));
   }
 
   try {
@@ -126,8 +151,8 @@ const updatePoll = async (id, PollParams) => {
 
     await tx.wait();
 
-    const poll = await getPoll(id)
-    store.dispatch(setPoll(poll))
+    const poll = await getPoll(id);
+    store.dispatch(setPoll(poll));
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -136,11 +161,11 @@ const updatePoll = async (id, PollParams) => {
   }
 };
 
+
 const deletePoll = async (id) => {
-  const ethereum = getEthereum();
-  if (!ethereum) {
-    reportError("Please install Metamask");
-    return Promise.reject(new Error("Metamask not installed"));
+  if (!walletProvider) {
+    reportError("Wallet not connected");
+    return Promise.reject(new Error("Wallet not connected"));
   }
 
   try {
@@ -155,6 +180,7 @@ const deletePoll = async (id) => {
   }
 };
 
+
 const getPolls = async () => {
   const contract = await getEthereumContract();
   const polls = await contract.getPolls();
@@ -168,11 +194,10 @@ const getPoll = async (id) => {
   return structurePolls([poll])[0]
 };
 
-const contestPoll = async (id, name, image ) => {
-  const ethereum = getEthereum();
-  if (!ethereum) {
-    reportError("Please install Metamask");
-    return Promise.reject(new Error("Metamask not installed"));
+const contestPoll = async (id, name, image) => {
+  if (!walletProvider) {
+    reportError("Wallet not connected");
+    return Promise.reject(new Error("Wallet not connected"));
   }
 
   try {
@@ -181,15 +206,11 @@ const contestPoll = async (id, name, image ) => {
 
     await tx.wait();
 
-    const poll = await getPoll(id)
-    store.dispatch(setPoll(poll))
+    const poll = await getPoll(id);
+    store.dispatch(setPoll(poll));
 
-    const contestants = await getContestants(id)
-    console.log("this is contestant that will be dispatch: ", contestants)
-    store.dispatch(setContestants(contestants))
-
-    console.log("Updated poll in store:", store.getState().globalStates.poll)
-    console.log("Updated contestants in store:", store.getState().globalStates.contestants)
+    const contestants = await getContestants(id);
+    store.dispatch(setContestants(contestants));
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -198,11 +219,11 @@ const contestPoll = async (id, name, image ) => {
   }
 };
 
-const voteCandidate = async (id, cid ) => {
-  const ethereum = getEthereum();
-  if (!ethereum) {
-    reportError("Please install Metamask");
-    return Promise.reject(new Error("Metamask not installed"));
+
+const voteCandidate = async (id, cid) => {
+  if (!walletProvider) {
+    reportError("Wallet not connected");
+    return Promise.reject(new Error("Wallet not connected"));
   }
 
   try {
@@ -210,11 +231,11 @@ const voteCandidate = async (id, cid ) => {
     const tx = await contract.vote(id, cid);
     await tx.wait();
 
-    const poll = await getPoll(id)
-    store.dispatch(setPoll(poll))
+    const poll = await getPoll(id);
+    store.dispatch(setPoll(poll));
 
-    const contestants = await getContestants(id)
-    store.dispatch(setContestants(contestants))
+    const contestants = await getContestants(id);
+    store.dispatch(setContestants(contestants));
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -222,6 +243,7 @@ const voteCandidate = async (id, cid ) => {
     return Promise.reject(error);
   }
 };
+
 
 const getContestants = async (id) => {
   const contract = await getEthereumContract();
