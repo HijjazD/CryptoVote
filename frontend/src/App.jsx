@@ -54,7 +54,7 @@ function App() {
   useEffect(() => {
     checkAuth()
     checkWallet()
-  },[checkWallet, checkAuth])
+  },[])
 
 
   return (
