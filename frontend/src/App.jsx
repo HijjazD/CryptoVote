@@ -13,7 +13,6 @@ import { Toaster } from "react-hot-toast";
 
 import { useAuthStore } from "./store/authStore"
 import { useEffect } from "react"
-import { checkWallet } from "./services/blockchain"
 
 
 
@@ -53,7 +52,6 @@ function App() {
 
   useEffect(() => {
     checkAuth()
-    checkWallet()
   },[])
 
 
