@@ -230,7 +230,7 @@ const deletePoll = async (id) => {
 };
 
 
-export const getPolls = async () => {
+const getPolls = async () => {
   const contract = await getEthereumContract(false); // use read-only
   const polls = await contract.getPolls();
   return structurePolls(polls);
