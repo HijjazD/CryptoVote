@@ -4,60 +4,45 @@ import { contractAbi, contractAddress } from "../constant/constant";
 import { globalActions } from "../store/globalSlices";
 import WalletConnectProvider from "@walletconnect/ethereum-provider";
 
-const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM'
-const WALLETCONNECT_PROJECT_ID = "4234666a862ca5511dd22e000d2bb773"
-const CHAIN_ID = 11155111; // Sepolia testnet
-
+const APP_RPC_URL = import.meta.env.VITE_APP_RPC_URL;
+const ALCHEMY_API_KEY ="rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM"
 const { setWallet, setPolls, setPoll,setContestants } = globalActions;
 
-let walletProvider = null;
-let signer = null;
+const WALLETCONNECT_PROJECT_ID = "4234666a862ca5511dd22e000d2bb773"
 
-/**
- * Initialize wallet provider using WalletConnect or MetaMask
- */
-const getWalletProvider = async () => {
-  try {
-    // WalletConnect as primary
-    walletProvider = await WalletConnectProvider.init({
+let walletConnectProvider;
+let walletType = "metamask";
+
+const initWalletConnectProvider = async () => {
+  if (!walletConnectProvider) {
+    walletConnectProvider = await WalletConnectProvider.init({
       projectId: WALLETCONNECT_PROJECT_ID,
-      chains: [CHAIN_ID],
-      showQrModal: true,
+      chains: [11155111], 
       rpcMap: {
-        [CHAIN_ID]: APP_RPC_URL,
+        11155111: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
       },
-      methods: [
-        "eth_sendTransaction",
-        "eth_signTransaction",
-        "eth_sign",
-        "personal_sign",
-        "eth_signTypedData",
-      ],
-      events: ["accountsChanged", "chainChanged", "disconnect"],
-      metadata: {
-        name: "CryptoVote",
-        description: "Decentralized student voting system",
-        url: "https://cryptovote.online", // 🔁 use your real deployed URL
-        icons: ["https://cryptovote.online/assets/images/cv.png"],
-      },
+      showQrModal: true,
     });
 
-    await walletProvider.enable();
-    return walletProvider;
-  } catch (wcError) {
-    console.warn("WalletConnect failed, trying MetaMask...", wcError);
-
-    // Fallback: MetaMask
-    if (typeof window !== "undefined" && window.ethereum) {
-      walletProvider = window.ethereum;
-      return walletProvider;
-    }
-
-    throw new Error("No wallet provider found. Please install MetaMask or use WalletConnect.");
+    walletConnectProvider.on("disconnect", () => {
+      store.dispatch(setWallet(""));
+      walletType = "metamask";
+    });
   }
+  return walletConnectProvider;
 };
 
+// Get window.ethereum
+const getEthereum = () => {
+  if (typeof window !== "undefined") {
+    return window.ethereum;
+  }
 
+  if (walletConnectProvider && walletConnectProvider.connected) {
+    return walletConnectProvider;
+  }
+  return null;
+};
 
 export const getAddress = async() => {
   const contract = await getEthereumContract();
@@ -71,68 +56,126 @@ export const getAddress = async() => {
 
 // Updated for ethers v6
 const getEthereumContract = async () => {
-  if (!walletProvider) {
-    throw new Error("Wallet not connected. Call connectWallet() first.");
+  let provider;
+  let signer;
+
+  if (walletType === "metamask") {
+    const ethereum = getEthereum();
+    if (!ethereum) throw new Error("Ethereum object not found. Make sure MetaMask is installed.");
+
+    const accounts = await ethereum.request?.({ method: "eth_accounts" });
+
+    if (accounts?.[0]) {
+      provider = new BrowserProvider(ethereum);
+      signer = await provider.getSigner();
+    } else {
+      provider = new JsonRpcProvider(APP_RPC_URL);
+      const wallet = Wallet.createRandom().connect(provider);
+      signer = wallet;
+    }
+  } else if (walletType === "walletconnect") {
+    const providerWC = await initWalletConnectProvider();
+    await providerWC.enable();
+    provider = new BrowserProvider(providerWC);
+    signer = await provider.getSigner();
+  } else {
+    // fallback to readonly provider
+    provider = new JsonRpcProvider(APP_RPC_URL);
+    const wallet = Wallet.createRandom().connect(provider);
+    signer = wallet;
   }
 
-  const provider = new BrowserProvider(walletProvider);
-  signer = await provider.getSigner();
   return new Contract(contractAddress, contractAbi, signer);
 };
 
-const connectWallet = async () => {
+
+const connectWallet = async (type = "metamask") => {
   try {
-    const providerSource = await getWalletProvider(); // can be WalletConnect or MetaMask
-    const provider = new BrowserProvider(providerSource);
-    signer = await provider.getSigner();
-    const address = await signer.getAddress();
+    walletType = type;
 
-    store.dispatch(setWallet(address));
+    if (walletType === "metamask") {
+      const ethereum = window.ethereum;
 
-    // ✅ Add listeners if using WalletConnect (e.g. MetaMask mobile)
-    if (providerSource?.on && providerSource.isWalletConnect) {
-      providerSource.on("accountsChanged", (accounts) => {
-        const address = accounts?.[0] || "";
+      if (!ethereum) {
+        // No MetaMask detected, fallback to WalletConnect
+        walletType = "walletconnect";
+
+        const provider = await initWalletConnectProvider();
+        await provider.enable();
+
+        const ethersProvider = new BrowserProvider(provider);
+        const signer = await ethersProvider.getSigner();
+        const address = await signer.getAddress();
+
         store.dispatch(setWallet(address));
-      });
+        return; // done
+      }
 
-      providerSource.on("disconnect", () => {
-        store.dispatch(setWallet(""));
-        alert("Wallet disconnected.");
-      });
+      // MetaMask detected, request accounts
+      const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+      store.dispatch(setWallet(accounts[0]));
+    } else if (walletType === "walletconnect") {
+      const provider = await initWalletConnectProvider();
+      await provider.enable();
 
-      providerSource.on("chainChanged", () => {
-        window.location.reload();
-      });
+      const ethersProvider = new BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+      const address = await signer.getAddress();
+
+      store.dispatch(setWallet(address));
     }
-
-    return address;
-  } catch (err) {
-    console.error("Error connecting wallet:", err);
-    throw err;
+  } catch (error) {
+    console.error(error);
+    alert("Failed to connect wallet: " + (error.message || error));
   }
 };
+
+
 
 const checkWallet = async () => {
   try {
-    const provider = await getWalletProvider();
-    const accounts = provider.accounts || (await provider.request?.({ method: "eth_accounts" }));
+    if (walletType === "metamask") {
+      const ethereum = getEthereum();
+      if (!ethereum) return reportError("Please install MetaMask");
 
-    if (accounts?.length) {
-      store.dispatch(setWallet(accounts[0]));
-    } else {
-      store.dispatch(setWallet(""));
-      console.warn("No accounts found. Please connect wallet.");
+      const accounts = await ethereum.request?.({ method: "eth_accounts" });
+
+      ethereum.on("chainChanged", () => window.location.reload());
+      ethereum.on("accountsChanged", async (accounts) => {
+        store.dispatch(setWallet(accounts?.[0] || ""));
+        await checkWallet();
+      });
+
+      if (accounts?.length) {
+        store.dispatch(setWallet(accounts[0]));
+      } else {
+        store.dispatch(setWallet(""));
+        reportError("Please connect wallet, no accounts found.");
+      }
+    } else if (walletType === "walletconnect") {
+      if (!walletConnectProvider) return;
+
+      if (walletConnectProvider.connected) {
+        const ethersProvider = new BrowserProvider(walletConnectProvider);
+        const signer = await ethersProvider.getSigner();
+        const address = await signer.getAddress();
+        store.dispatch(setWallet(address));
+      } else {
+        store.dispatch(setWallet(""));
+        reportError("Please connect your WalletConnect wallet");
+      }
     }
   } catch (error) {
-    console.error("checkWallet error:", error);
+    reportError(error);
   }
 };
 
+
 const createPoll = async (PollParams) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
+  const ethereum = getEthereum();
+  if (!ethereum) {
+    reportError("Please install Metamask");
+    return Promise.reject(new Error("Metamask not installed"));
   }
 
   try {
@@ -142,8 +185,8 @@ const createPoll = async (PollParams) => {
 
     await tx.wait();
 
-    const polls = await getPolls();
-    store.dispatch(setPolls(polls));
+    const polls = await getPolls()
+    store.dispatch(setPolls(polls))
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -152,11 +195,11 @@ const createPoll = async (PollParams) => {
   }
 };
 
-
 const updatePoll = async (id, PollParams) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
+  const ethereum = getEthereum();
+  if (!ethereum) {
+    reportError("Please install Metamask");
+    return Promise.reject(new Error("Metamask not installed"));
   }
 
   try {
@@ -166,8 +209,8 @@ const updatePoll = async (id, PollParams) => {
 
     await tx.wait();
 
-    const poll = await getPoll(id);
-    store.dispatch(setPoll(poll));
+    const poll = await getPoll(id)
+    store.dispatch(setPoll(poll))
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -176,11 +219,11 @@ const updatePoll = async (id, PollParams) => {
   }
 };
 
-
 const deletePoll = async (id) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
+  const ethereum = getEthereum();
+  if (!ethereum) {
+    reportError("Please install Metamask");
+    return Promise.reject(new Error("Metamask not installed"));
   }
 
   try {
@@ -195,7 +238,6 @@ const deletePoll = async (id) => {
   }
 };
 
-
 const getPolls = async () => {
   const contract = await getEthereumContract();
   const polls = await contract.getPolls();
@@ -209,10 +251,11 @@ const getPoll = async (id) => {
   return structurePolls([poll])[0]
 };
 
-const contestPoll = async (id, name, image) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
+const contestPoll = async (id, name, image ) => {
+  const ethereum = getEthereum();
+  if (!ethereum) {
+    reportError("Please install Metamask");
+    return Promise.reject(new Error("Metamask not installed"));
   }
 
   try {
@@ -221,11 +264,15 @@ const contestPoll = async (id, name, image) => {
 
     await tx.wait();
 
-    const poll = await getPoll(id);
-    store.dispatch(setPoll(poll));
+    const poll = await getPoll(id)
+    store.dispatch(setPoll(poll))
 
-    const contestants = await getContestants(id);
-    store.dispatch(setContestants(contestants));
+    const contestants = await getContestants(id)
+    console.log("this is contestant that will be dispatch: ", contestants)
+    store.dispatch(setContestants(contestants))
+
+    console.log("Updated poll in store:", store.getState().globalStates.poll)
+    console.log("Updated contestants in store:", store.getState().globalStates.contestants)
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -234,23 +281,24 @@ const contestPoll = async (id, name, image) => {
   }
 };
 
-
-const voteCandidate = async (id, cid) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
+const voteCandidate = async (id, cid ) => {
+  const ethereum = getEthereum();
+  if (!ethereum) {
+    reportError("Please install Metamask");
+    return Promise.reject(new Error("Metamask not installed"));
   }
 
   try {
     const contract = await getEthereumContract();
+    //vote
     const tx = await contract.vote(id, cid);
     await tx.wait();
 
-    const poll = await getPoll(id);
-    store.dispatch(setPoll(poll));
+    const poll = await getPoll(id)
+    store.dispatch(setPoll(poll))
 
-    const contestants = await getContestants(id);
-    store.dispatch(setContestants(contestants));
+    const contestants = await getContestants(id)
+    store.dispatch(setContestants(contestants))
 
     return Promise.resolve(tx);
   } catch (error) {
@@ -258,7 +306,6 @@ const voteCandidate = async (id, cid) => {
     return Promise.reject(error);
   }
 };
-
 
 const getContestants = async (id) => {
   const contract = await getEthereumContract();
