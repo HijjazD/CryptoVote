@@ -59,25 +59,27 @@ const getWalletProvider = async () => {
 
 
 
-export const getAddress = async() => {
-  const contract = await getEthereumContract();
-  const provider = contract.runner.provider; // ethers v6 way
-
+export const getAddress = async () => {
+  const provider = new JsonRpcProvider(APP_RPC_URL); // read-only
   const code = await provider.getCode(contractAddress);
-  return code
-
-}
+  return code;
+};
 
 
 // Updated for ethers v6
-const getEthereumContract = async () => {
-  if (!walletProvider) {
-    throw new Error("Wallet not connected. Call connectWallet() first.");
+const getEthereumContract = async (withSigner = true) => {
+  if (withSigner) {
+    if (!walletProvider) {
+      throw new Error("Wallet not connected. Call connectWallet() first.");
+    }
+    const provider = new BrowserProvider(walletProvider);
+    signer = await provider.getSigner();
+    return new Contract(contractAddress, contractAbi, signer);
+  } else {
+    // Read-only provider (e.g., Alchemy)
+    const provider = new JsonRpcProvider(APP_RPC_URL);
+    return new Contract(contractAddress, contractAbi, provider);
   }
-
-  const provider = new BrowserProvider(walletProvider);
-  signer = await provider.getSigner();
-  return new Contract(contractAddress, contractAbi, signer);
 };
 
 const connectWallet = async () => {
@@ -168,7 +170,7 @@ const createPoll = async (PollParams) => {
   }
 
   try {
-    const contract = await getEthereumContract();
+    const contract = await getEthereumContract(true);
     const { image, title, description, startsAt, endsAt } = PollParams;
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
 
@@ -192,7 +194,7 @@ const updatePoll = async (id, PollParams) => {
   }
 
   try {
-    const contract = await getEthereumContract();
+    const contract = await getEthereumContract(true);
     const { image, title, description, startsAt, endsAt } = PollParams;
     const tx = await contract.updatePoll(id, image, title, description, startsAt, endsAt);
 
@@ -216,7 +218,7 @@ const deletePoll = async (id) => {
   }
 
   try {
-    const contract = await getEthereumContract();
+    const contract = await getEthereumContract(true);
     const tx = await contract.deletePoll(id);
 
     await tx.wait();
@@ -228,15 +230,16 @@ const deletePoll = async (id) => {
 };
 
 
-const getPolls = async () => {
-  const contract = await getEthereumContract();
+export const getPolls = async () => {
+  const contract = await getEthereumContract(false); // use read-only
   const polls = await contract.getPolls();
   return structurePolls(polls);
 };
 
 
+
 const getPoll = async (id) => {
-  const contract = await getEthereumContract();
+  const contract = await getEthereumContract(false);
   const poll = await contract.getPoll(id);
   return structurePolls([poll])[0]
 };
@@ -248,7 +251,7 @@ const contestPoll = async (id, name, image) => {
   }
 
   try {
-    const contract = await getEthereumContract();
+    const contract = await getEthereumContract(true);
     const tx = await contract.contest(id, name, image);
 
     await tx.wait();
@@ -274,7 +277,7 @@ const voteCandidate = async (id, cid) => {
   }
 
   try {
-    const contract = await getEthereumContract();
+    const contract = await getEthereumContract(true);
     const tx = await contract.vote(id, cid);
     await tx.wait();
 
@@ -293,9 +296,8 @@ const voteCandidate = async (id, cid) => {
 
 
 const getContestants = async (id) => {
-  const contract = await getEthereumContract();
+  const contract = await getEthereumContract(false);
   const contestants = await contract.getContestants(id);
-  console.log("This is from getContestants. contestants:", contestants)
   return structureContestants(contestants)
 };
 
