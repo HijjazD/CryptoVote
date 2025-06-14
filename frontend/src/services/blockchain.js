@@ -11,7 +11,7 @@ const { setWallet, setPolls, setPoll,setContestants } = globalActions;
 const WALLETCONNECT_PROJECT_ID = "4234666a862ca5511dd22e000d2bb773"
 
 let walletConnectProvider;
-let walletType = "metamask";
+let walletType = "walletconnect";
 
 const initWalletConnectProvider = async () => {
   if (!walletConnectProvider) {
