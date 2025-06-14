@@ -6,6 +6,7 @@ import WalletConnectProvider from "@walletconnect/ethereum-provider";
 
 const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM'
 const WALLETCONNECT_PROJECT_ID = "4234666a862ca5511dd22e000d2bb773"
+const CHAIN_ID = 11155111; // Sepolia testnet
 
 const { setWallet, setPolls, setPoll,setContestants } = globalActions;
 
@@ -24,6 +25,20 @@ const getWalletProvider = async () => {
       showQrModal: true,
       rpcMap: {
         [CHAIN_ID]: APP_RPC_URL,
+      },
+      methods: [
+        "eth_sendTransaction",
+        "eth_signTransaction",
+        "eth_sign",
+        "personal_sign",
+        "eth_signTypedData",
+      ],
+      events: ["accountsChanged", "chainChanged", "disconnect"],
+      metadata: {
+        name: "CryptoVote",
+        description: "Decentralized student voting system",
+        url: "https://cryptovote.online", // 🔁 use your real deployed URL
+        icons: ["https://cryptovote.online/assets/images/cv.png"],
       },
     });
 
