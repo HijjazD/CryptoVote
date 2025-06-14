@@ -37,8 +37,8 @@ const getWalletProvider = async () => {
       metadata: {
         name: "cryptovote",
         description: "Blockchain based voting system project",
-        url: "https://cryptovote.online", // 🔁 use your real deployed URL
-        icons: ["https://cryptovote.online/assets/images/cv.png"],
+        url: "https://www.cryptovote.online", // 🔁 use your real deployed URL
+        icons: ["https://www.cryptovote.online/assets/images/cv.png"],
       },
     });
 
