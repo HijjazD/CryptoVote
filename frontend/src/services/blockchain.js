@@ -115,17 +115,49 @@ const connectWallet = async () => {
 
 const checkWallet = async () => {
   try {
-    const provider = await getWalletProvider();
-    const accounts = provider.accounts || (await provider.request?.({ method: "eth_accounts" }));
+    let address = "";
 
-    if (accounts?.length) {
-      store.dispatch(setWallet(accounts[0]));
+    // 1. 🔍 Check WalletConnect session first
+    try {
+      const wcProvider = await WalletConnectProvider.init({
+        projectId: WALLETCONNECT_PROJECT_ID,
+        chains: [CHAIN_ID],
+        rpcMap: {
+          [CHAIN_ID]: APP_RPC_URL,
+        },
+        showQrModal: false, // Don't trigger popup
+      });
+
+      const wcAccounts = wcProvider.accounts;
+      if (wcAccounts?.length) {
+        address = wcAccounts[0];
+        console.log("WalletConnect session restored:", address);
+      }
+    } catch (wcErr) {
+      console.log("No active WalletConnect session found.");
+    }
+
+    // 2. 🧪 If no WalletConnect session, check injected provider (e.g. MetaMask Desktop)
+    if (!address && typeof window !== "undefined" && window.ethereum) {
+      const injectedProvider = window.ethereum;
+      const accounts = await injectedProvider.request({ method: "eth_accounts" });
+      if (accounts?.length) {
+        address = accounts[0];
+        console.log("Injected wallet found:", address);
+      }
+    }
+
+    // 3. ✅ Update store
+    if (address) {
+      store.dispatch(setWallet(address));
     } else {
       store.dispatch(setWallet(""));
-      console.warn("No accounts found. Please connect wallet.");
+      console.warn("No wallet session found.");
     }
+
   } catch (error) {
     console.error("checkWallet error:", error);
+    store.dispatch(setWallet(""));
   }
 };
 
