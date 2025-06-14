@@ -7,7 +7,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { globalActions } from '../store/globalSlices'
 
 import CreatePoll from '../components/createPoll'
-import { getPolls } from '../services/blockchain'
+import { getPolls,checkWallet } from '../services/blockchain'
 
 const HomePage = () => {
   const dispatch = useDispatch()
@@ -22,6 +22,7 @@ const HomePage = () => {
     };
 
     fetchPolls();
+    checkWallet();
   }, [dispatch, setPolls]);
 
 
