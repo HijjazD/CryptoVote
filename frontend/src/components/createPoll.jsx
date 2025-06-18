@@ -4,6 +4,8 @@ import { FaTimes } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { createPoll, getAddress } from '../services/blockchain'
 import { globalActions } from '../store/globalSlices'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 //import { getEthereum, getEthersProviders } from '../services/blockchain'
 
 const CreatePoll = () => {
@@ -97,29 +99,34 @@ const CreatePoll = () => {
               />
             </div>
 
-            <div className="py-4 w-full border border-[#212D4A] rounded-full
-                flex items-center px-4 mb-3 mt-2 space-x-2 bg-[#1B5CFE]/20"
-            >
-              <input 
-                  className="w-full px-4 py-2 text-sm bg-gray-800 text-white placeholder-gray-400 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full"
-                  name="startsAt"
-                  type="datetime-local"
-                  value={poll.startsAt}
-                  onChange={handleChange}
-                  required
+            <div className="py-4 w-full border border-[#212D4A] rounded-full flex items-center px-4 mb-3 mt-2 bg-[#1B5CFE]/20">
+              <DatePicker
+                selected={poll.startsAt ? new Date(poll.startsAt) : null}
+                onChange={(date) => {
+                  setPoll({ ...poll, startsAt: date.getTime() }) // convert to timestamp (ms)
+                }}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                dateFormat="Pp" // 06/18/2025, 11:58 PM
+                placeholderText="Start Date and Time"
+                className="w-full px-4 py-2 text-sm bg-gray-800 text-white placeholder-gray-400 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full"
               />
             </div>
 
-            <div className="py-4 w-full border border-[#212D4A] rounded-full
-            flex items-center px-4 mb-3 mt-2 space-x-2 bg-[#1B5CFE]/20"
-            >
-              <input
-                  className="w-full px-4 py-2 text-sm bg-gray-800 text-white placeholder-gray-400 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full"
-                  name="endsAt"
-                  type="datetime-local"
-                  value={poll.endsAt}
-                  onChange={handleChange}
-                  required
+
+            <div className="py-4 w-full border border-[#212D4A] rounded-full flex items-center px-4 mb-3 mt-2 bg-[#1B5CFE]/20">
+              <DatePicker
+                selected={poll.endsAt ? new Date(poll.endsAt) : null}
+                onChange={(date) => {
+                  setPoll({ ...poll, endsAt: date.getTime() })
+                }}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                dateFormat="Pp"
+                placeholderText="End Date and Time"
+                className="w-full px-4 py-2 text-sm bg-gray-800 text-white placeholder-gray-400 border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full"
               />
             </div>
 
