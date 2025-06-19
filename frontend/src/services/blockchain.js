@@ -173,22 +173,26 @@ const createPoll = async (PollParams) => {
   }
 
   console.log("trying to createpoll...");
+
   try {
     const contract = await getEthereumContract(true);
-    console.log("success in getting contract");
+    const signer = contract.runner; // ethers v6, equivalent of `signer`
 
     const { image, title, description, startsAt, endsAt } = PollParams;
 
-    // ✅ Send transaction — MetaMask will open
-    const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
-    console.log("tx sent:", tx.hash);
+    // ✅ 1. Create raw tx (but don't send yet)
+    const txRequest = await contract.populateTransaction.createPoll(
+      image, title, description, startsAt, endsAt
+    );
 
-    // ✅ Save to localStorage immediately (in case MetaMask redirects the user)
+    // ✅ 2. Send manually via signer
+    const tx = await signer.sendTransaction(txRequest);
+
+    // ✅ 3. Save tx hash BEFORE MetaMask redirects
     localStorage.setItem("pendingTx", tx.hash);
-    localStorage.setItem("newPollPending", "true");  // use this flag after reload
-    localStorage.setItem("pendingPoll", JSON.stringify(PollParams));  // optional: keep form data
+    localStorage.setItem("newPollPending", "true");
 
-    // ✅ Return tx hash so caller can use it
+    console.log("tx sent:", tx.hash);
     return tx.hash;
   } catch (error) {
     console.error("createPoll error:", error);
