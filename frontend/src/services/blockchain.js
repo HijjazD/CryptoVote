@@ -166,41 +166,42 @@ const checkWallet = async () => {
   }
 };
 
-
 const createPoll = async (PollParams) => {
   if (!walletProvider) {
     reportError("Wallet not connected");
     return Promise.reject(new Error("Wallet not connected"));
   }
-  console.log("trying to createpoll...")
-  try {
-    console.log("trying to getContract")
-    const contract = await getEthereumContract(true);
-    console.log("success in getting contract")
-    const { image, title, description, startsAt, endsAt } = PollParams;
-    console.log("calling createPoll from smart contract")
-    
-    let tx
-    try {
-      tx = await contract.createPoll(image, title, description, startsAt, endsAt);
-    } catch (error) {
-      console.log("error in transaction")
-      return Promise.reject(error);
-    }
-    console.log("success in calling createPoll from smart contract")
 
-    console.log("await tx.wait()")
-    await tx.wait();
-    console.log("success await tx.wait()")
+  console.log("trying to createpoll...");
+  try {
+    const contract = await getEthereumContract(true);
+    console.log("success in getting contract");
+
+    const { image, title, description, startsAt, endsAt } = PollParams;
+
+    console.log("calling createPoll from smart contract");
+
+    const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
+    console.log("tx sent:", tx.hash);
+
+
+    // ✅ Use read-only provider to wait for confirmation (works even after reloads)
+    const provider = new JsonRpcProvider(APP_RPC_URL);
+    const receipt = await provider.waitForTransaction(tx.hash);
+    
+    console.log("Transaction confirmed:", receipt);
+
     const polls = await getPolls();
     store.dispatch(setPolls(polls));
 
     return Promise.resolve(tx);
   } catch (error) {
+    console.error("createPoll error:", error);
     reportError(error);
     return Promise.reject(error);
   }
 };
+
 
 
 const updatePoll = async (id, PollParams) => {
