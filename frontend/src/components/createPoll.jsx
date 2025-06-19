@@ -28,41 +28,7 @@ const CreatePoll = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
- useEffect(() => {
-    const resumeTx = async () => {
-      const txHash = localStorage.getItem('pendingTx')
-      if (!txHash) return
-
-      toast.loading('Waiting for transaction confirmation...')
-      setLoading(true)
-
-      try {
-        const provider = new JsonRpcProvider(APP_RPC_URL)
-        const receipt = await provider.waitForTransaction(txHash)
-        console.log('Recovered transaction confirmed:', receipt)
-
-        // ✅ Refresh polls
-        const polls = await getPolls()
-        store.dispatch(setPolls(polls))
-
-        toast.success('Poll created successfully 👌')
-      } catch (err) {
-        console.error('Recovered tx failed:', err)
-        toast.error('Transaction failed 🤯')
-      } finally {
-        localStorage.removeItem('pendingTx')
-        localStorage.removeItem('pendingPoll')
-        setLoading(false)
-        dispatch(setCreateModal('scale-0')) // Close modal
-
-        // ✅ Reload page to reflect new poll
-        window.location.reload()
-      }
-    }
-
-    resumeTx()
-  }, [])
-
+ 
 
   const handleSubmit = async (e) => {
     e.preventDefault()
