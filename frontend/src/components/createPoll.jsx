@@ -2,16 +2,19 @@ import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { FaTimes } from 'react-icons/fa'
 import { toast } from 'react-hot-toast'
-import { createPoll} from '../services/blockchain'
+import { createPoll,getPolls } from '../services/blockchain'
 import { globalActions } from '../store/globalSlices'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Loader } from 'lucide-react'
+import { JsonRpcProvider } from "ethers";
+import { store } from "../store";
+
 
 const CreatePoll = () => {
   const { wallet, createModal } = useSelector((states) => states.globalStates)
   const dispatch = useDispatch()
-  const { setCreateModal } = globalActions
+  const { setCreateModal,setPolls } = globalActions
 
   const [poll, setPoll] = useState({
     image: '',
@@ -25,45 +28,59 @@ const CreatePoll = () => {
   const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    console.log("im trying to createpoll")
-    setError('')
+    e.preventDefault();
+    console.log("im trying to createpoll");
+    setError('');
 
     if (!wallet || wallet.length === 0) {
-      setError("Connect Wallet First!")
+      setError("Connect Wallet First!");
       toast.error('Connect wallet first!');
       return;
     }
 
-
     if (!poll.image || !poll.title || !poll.description || !poll.startsAt || !poll.endsAt) {
-      toast.warning('Please fill in all required fields.')
-      return
+      toast.warning('Please fill in all required fields.');
+      return;
     }
 
-    poll.startsAt = new Date(poll.startsAt).getTime()
-    poll.endsAt = new Date(poll.endsAt).getTime()
+    poll.startsAt = new Date(poll.startsAt).getTime();
+    poll.endsAt = new Date(poll.endsAt).getTime();
 
     try {
-      setLoading(true)
+      setLoading(true);
+
       await toast.promise(
-        createPoll(poll).then((tx) => {
-          console.log(tx)
-          closeModal()
-        }),
+        (async () => {
+          // ✅ 1. Trigger tx and get hash
+          const txHash = await createPoll(poll);
+          console.log("txHash:", txHash);
+
+          // ✅ 2. Close modal immediately (better UX)
+          closeModal();
+
+          // ✅ 3. Wait for confirmation with read-only provider
+          const provider = new JsonRpcProvider(APP_RPC_URL);
+          const receipt = await provider.waitForTransaction(txHash);
+          console.log("Transaction confirmed:", receipt);
+
+          // ✅ 4. Refresh poll list
+          const polls = await getPolls();
+          store.dispatch(setPolls(polls));
+        })(),
         {
-          pending: 'Approve transaction...',
+          pending: 'Waiting for transaction confirmation...',
           success: 'Poll created successfully 👌',
           error: 'Transaction failed 🤯',
         }
-      )
+      );
     } catch (error) {
-      console.error('Transaction error:', error)
-      setError(error?.message || 'Something went wrong.')
+      console.error('Transaction error:', error);
+      setError(error?.message || 'Something went wrong.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
 
 
   const handleChange = (e) => {
