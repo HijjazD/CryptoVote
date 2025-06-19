@@ -179,8 +179,10 @@ const createPoll = async (PollParams) => {
     console.log("success in getting contract")
     const { image, title, description, startsAt, endsAt } = PollParams;
     console.log("calling createPoll from smart contract")
+    
+    let tx
     try {
-      const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
+      tx = await contract.createPoll(image, title, description, startsAt, endsAt);
     } catch (error) {
       console.log("error in transaction")
       return Promise.reject(error);
