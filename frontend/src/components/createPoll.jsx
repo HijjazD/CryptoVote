@@ -28,46 +28,40 @@ const CreatePoll = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
- 
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    console.log("im trying to createpoll")
-
-    if (!wallet || wallet.length === 0) {
-      setError("Connect Wallet First!")
-      toast.error('Connect wallet first!')
-      return
-    }
-
-    if (!poll.image || !poll.title || !poll.description || !poll.startsAt || !poll.endsAt) {
-      toast.warning('Please fill in all required fields.')
-      return
-    }
-
-    poll.startsAt = new Date(poll.startsAt).getTime()
-    poll.endsAt = new Date(poll.endsAt).getTime()
-
-    try {
-      setLoading(true)
-
-      const txHash = await createPoll(poll)
-      console.log("txHash:", txHash)
-
-      // ✅ Save tx and pending flag
-      localStorage.setItem("pendingTx", txHash)
-      localStorage.setItem("newPollPending", "true")
-
-      // ✅ Close modal and reload immediately
-      closeModal()
-      window.location.reload()
-    } catch (error) {
-      console.error('Transaction error:', error)
-      setError(error?.message || 'Something went wrong.')
-      setLoading(false)
-    }
+  if (!wallet || wallet.length === 0) {
+    setError('Connect Wallet First!');
+    toast.error('Connect wallet first!');
+    return;
   }
+
+  if (!poll.image || !poll.title || !poll.description || !poll.startsAt || !poll.endsAt) {
+    toast.warning('Please fill in all required fields.');
+    return;
+  }
+
+  poll.startsAt = new Date(poll.startsAt).getTime();
+  poll.endsAt = new Date(poll.endsAt).getTime();
+
+  try {
+    setLoading(true);
+
+    createPoll(poll);
+
+    // ✅ Close modal and reload
+    closeModal();
+    window.location.reload(); // will resume via localStorage in HomePage
+  } catch// ✅ Just trigger createPoll (no await needed now)
+     (error) {
+    console.error('Transaction error:', error);
+    setError(error?.message || 'Something went wrong.');
+    setLoading(false);
+  }
+};
+
 
 
 
