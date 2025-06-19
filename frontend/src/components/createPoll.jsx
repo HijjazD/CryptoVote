@@ -63,7 +63,8 @@ const CreatePoll = () => {
     resumeTx()
   }, [])
 
- const handleSubmit = async (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     console.log("im trying to createpoll")
@@ -85,21 +86,23 @@ const CreatePoll = () => {
     try {
       setLoading(true)
 
-      // ✅ Get tx hash and save it to localStorage
       const txHash = await createPoll(poll)
+      console.log("txHash:", txHash)
+
+      // ✅ Save tx and pending flag
       localStorage.setItem("pendingTx", txHash)
-      localStorage.setItem("pendingPoll", JSON.stringify(poll))
+      localStorage.setItem("newPollPending", "true")
 
-      // ✅ Close modal immediately
+      // ✅ Close modal and reload immediately
       closeModal()
-
-      // ✅ Wait for confirmation handled by useEffect
+      window.location.reload()
     } catch (error) {
       console.error('Transaction error:', error)
       setError(error?.message || 'Something went wrong.')
       setLoading(false)
     }
   }
+
 
 
   const handleChange = (e) => {
