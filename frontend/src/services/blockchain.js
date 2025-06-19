@@ -8,7 +8,7 @@ const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6
 const WALLETCONNECT_PROJECT_ID = "4234666a862ca5511dd22e000d2bb773"
 const CHAIN_ID = 11155111; // Sepolia testnet
 
-const { setWallet, setPolls, setPoll,setContestants } = globalActions;
+const { setWallet, setPolls, setPoll,setContestants,setProvider } = globalActions;
 
 let walletProvider = null;
 let signer = null;
@@ -16,9 +16,10 @@ let signer = null;
 /**
  * Initialize wallet provider using WalletConnect or MetaMask
  */
+
 const getWalletProvider = async () => {
+  // Attempt WalletConnect first
   try {
-    // WalletConnect as primary
     walletProvider = await WalletConnectProvider.init({
       projectId: WALLETCONNECT_PROJECT_ID,
       chains: [CHAIN_ID],
@@ -37,23 +38,40 @@ const getWalletProvider = async () => {
       metadata: {
         name: "cryptovote",
         description: "Blockchain based voting system project",
-        url: "https://www.cryptovote.online", // 🔁 use your real deployed URL
+        url: "https://www.cryptovote.online",
         icons: ["https://www.cryptovote.online/assets/images/cv.png"],
       },
     });
 
-    await walletProvider.enable();
+    // Try connect
+    await walletProvider.connect();
+
     return walletProvider;
   } catch (wcError) {
-    console.warn("WalletConnect failed, trying MetaMask...", wcError);
+    console.warn("❌ WalletConnect connect() failed:", wcError.message || wcError);
 
-    // Fallback: MetaMask
-    if (typeof window !== "undefined" && window.ethereum) {
-      walletProvider = window.ethereum;
-      return walletProvider;
+    // ✅ Retry MetaMask only if WalletConnect was cancelled
+    if (
+      wcError?.message?.includes("User closed modal") || 
+      wcError?.message?.includes("Modal closed") ||
+      wcError?.message?.includes("User rejected")
+    ) {
+      console.log("🔁 Trying MetaMask fallback...");
+
+      if (typeof window !== "undefined" && window.ethereum) {
+        try {
+          walletProvider = window.ethereum;
+          await walletProvider.request({ method: "eth_requestAccounts" });
+          return walletProvider;
+        } catch (mmError) {
+          console.error("MetaMask request failed:", mmError);
+          throw mmError;
+        }
+      }
     }
 
-    throw new Error("No wallet provider found. Please install MetaMask or use WalletConnect.");
+    // If fallback not available
+    throw new Error("No wallet provider connected.");
   }
 };
 
@@ -103,9 +121,13 @@ const connectWallet = async () => {
         alert("Wallet disconnected.");
       });
 
-      providerSource.on("chainChanged", () => {
-        window.location.reload();
-      });
+      providerSource.on("chainChanged", (chainId) => {
+        const decimalChain = parseInt(chainId, 16);
+        if (decimalChain !== CHAIN_ID) {
+          alert("Please switch to Sepolia network.");
+      }
+});
+
     }
 
     return address;
@@ -118,64 +140,52 @@ const connectWallet = async () => {
 const checkWallet = async () => {
   try {
     let address = "";
+    let provider = null;
 
-    // 1. 🔍 Check WalletConnect session first
-    try {
-      const wcProvider = await WalletConnectProvider.init({
-        projectId: WALLETCONNECT_PROJECT_ID,
-        chains: [CHAIN_ID],
-        rpcMap: {
-          [CHAIN_ID]: APP_RPC_URL,
-        },
-        showQrModal: false, // Don't trigger popup
-      });
-
-      const wcAccounts = wcProvider.accounts;
-      if (wcAccounts?.length) {
-        address = wcAccounts[0];
-        console.log("WalletConnect session restored:", address);
-      }
-    } catch (wcErr) {
-      console.log("No active WalletConnect session found.");
-    }
-
-    // 2. 🧪 If no WalletConnect session, check injected provider (e.g. MetaMask Desktop)
-    if (!address && typeof window !== "undefined" && window.ethereum) {
-      const injectedProvider = window.ethereum;
-      const accounts = await injectedProvider.request({ method: "eth_accounts" });
-      if (accounts?.length) {
+    // ✅ Restore MetaMask session if available
+    if (typeof window !== "undefined" && window.ethereum) {
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      if (accounts?.length > 0) {
         address = accounts[0];
-        console.log("Injected wallet found:", address);
+        provider = window.ethereum;
+        walletProvider = window.ethereum;
+        console.log("🔌 MetaMask session active:", address);
       }
     }
 
-    // 3. ✅ Update store
-    if (address) {
-      store.dispatch(setWallet(address));
-    } else {
-      store.dispatch(setWallet(""));
-      console.warn("No wallet session found.");
-    }
+    // ✅ Update Redux store
+    store.dispatch(setWallet(address || ""));
+    store.dispatch(setProvider(null)); // avoid storing provider in Redux
 
-  } catch (error) {
-    console.error("checkWallet error:", error);
+    return provider;
+  } catch (err) {
+    console.error("❌ checkWallet failed:", err);
     store.dispatch(setWallet(""));
+    store.dispatch(setProvider(null));
+    return null;
   }
 };
+
+
 
 const createPoll = async (PollParams) => {
   if (!walletProvider) {
     reportError("Wallet not connected");
     return Promise.reject(new Error("Wallet not connected"));
   }
-
+  console.log("trying to createpoll...")
   try {
+    console.log("trying to getContract")
     const contract = await getEthereumContract(true);
+    console.log("success in getting contract")
     const { image, title, description, startsAt, endsAt } = PollParams;
+    console.log("calling createPoll from smart contract")
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
+    console.log("success in calling createPoll from smart contract")
 
+    console.log("await tx.wait()")
     await tx.wait();
-
+    console.log("success await tx.wait()")
     const polls = await getPolls();
     store.dispatch(setPolls(polls));
 
