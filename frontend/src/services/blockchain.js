@@ -176,19 +176,18 @@ const createPoll = async (PollParams) => {
 
   try {
     const contract = await getEthereumContract(true);
-    const signer = contract.runner; // ethers v6, equivalent of `signer`
+    const signer = contract.runner; // ethers v6
 
     const { image, title, description, startsAt, endsAt } = PollParams;
 
-    // ✅ 1. Create raw tx (but don't send yet)
-    const txRequest = await contract.populateTransaction.createPoll(
+    // ✅ Use the correct v6 pattern
+    const txRequest = await contract.createPoll.populateTransaction(
       image, title, description, startsAt, endsAt
     );
 
-    // ✅ 2. Send manually via signer
     const tx = await signer.sendTransaction(txRequest);
 
-    // ✅ 3. Save tx hash BEFORE MetaMask redirects
+    // ✅ Save hash early before redirect
     localStorage.setItem("pendingTx", tx.hash);
     localStorage.setItem("newPollPending", "true");
 
@@ -200,6 +199,7 @@ const createPoll = async (PollParams) => {
     return Promise.reject(error);
   }
 };
+
 
 
 const updatePoll = async (id, PollParams) => {
