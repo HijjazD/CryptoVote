@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { FaTimes } from 'react-icons/fa'
 import { toast } from 'react-hot-toast'
@@ -28,35 +28,39 @@ const CreatePoll = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // ✅ Check for pending tx in localStorage and resume
-  useEffect(() => {
-    const checkPendingTx = async () => {
-      const pendingTx = localStorage.getItem("pendingTx")
-      if (!pendingTx) return
+ useEffect(() => {
+    const resumeTx = async () => {
+      const txHash = localStorage.getItem('pendingTx')
+      if (!txHash) return
+
+      toast.loading('Waiting for transaction confirmation...')
+      setLoading(true)
 
       try {
-        setLoading(true)
-        toast.loading("Resuming previous transaction...")
-
         const provider = new JsonRpcProvider(APP_RPC_URL)
-        const receipt = await provider.waitForTransaction(pendingTx)
-        console.log("Recovered transaction confirmed:", receipt)
+        const receipt = await provider.waitForTransaction(txHash)
+        console.log('Recovered transaction confirmed:', receipt)
 
+        // ✅ Refresh polls
         const polls = await getPolls()
         store.dispatch(setPolls(polls))
 
-        toast.success("Poll created successfully 👌")
+        toast.success('Poll created successfully 👌')
       } catch (err) {
-        console.error("Recovered tx failed:", err)
-        toast.error("Transaction failed 🤯")
+        console.error('Recovered tx failed:', err)
+        toast.error('Transaction failed 🤯')
       } finally {
-        localStorage.removeItem("pendingTx")
+        localStorage.removeItem('pendingTx')
+        localStorage.removeItem('pendingPoll')
         setLoading(false)
-        closeModal()
+        dispatch(setCreateModal('scale-0')) // Close modal
+
+        // ✅ Reload page to reflect new poll
+        window.location.reload()
       }
     }
 
-    checkPendingTx()
+    resumeTx()
   }, [])
 
  const handleSubmit = async (e) => {
@@ -83,8 +87,8 @@ const CreatePoll = () => {
 
       // ✅ Get tx hash and save it to localStorage
       const txHash = await createPoll(poll)
-      console.log("txHash:", txHash)
       localStorage.setItem("pendingTx", txHash)
+      localStorage.setItem("pendingPoll", JSON.stringify(poll))
 
       // ✅ Close modal immediately
       closeModal()
