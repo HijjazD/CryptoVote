@@ -10,4 +10,5 @@ export const globalStates = {
   group: null,
   contestants: [],
   currentUser: null,
+  provider: null,
 }
