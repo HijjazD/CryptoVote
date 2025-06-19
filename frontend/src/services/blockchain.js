@@ -173,35 +173,39 @@ const createPoll = async (PollParams) => {
     return Promise.reject(new Error("Wallet not connected"));
   }
 
-  console.log("triggering createPoll...");
+  console.log("📤 createPoll triggered with:", PollParams);
 
   try {
-    const provider = new ethers.BrowserProvider(walletProvider);
-    const signer = await provider.getSigner();
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
+    const contract = await getEthereumContract(true);
     const { image, title, description, startsAt, endsAt } = PollParams;
 
-    // Trigger MetaMask but DO NOT AWAIT — let it redirect immediately
+    console.log("🚀 Sending tx via contract.createPoll...");
+
+    // Trigger MetaMask but DO NOT await — especially for mobile redirect
     const txPromise = contract.createPoll(image, title, description, startsAt, endsAt);
 
-    // Save poll data now in case MetaMask redirects
+    // Store poll data in case page reloads
     localStorage.setItem("pendingPoll", JSON.stringify(PollParams));
     localStorage.setItem("newPollPending", "true");
 
-    // Try to get tx hash before redirect (MetaMask mobile might cut it off)
-    txPromise.then((tx) => {
-      localStorage.setItem("pendingTx", tx.hash);
-    }).catch((err) => {
-      console.error("User rejected or tx failed:", err);
-      localStorage.removeItem("pendingPoll");
-      localStorage.removeItem("newPollPending");
-    });
+    // Try to get tx hash before MetaMask redirects (on desktop it works)
+    txPromise
+      .then((tx) => {
+        console.log("✅ Tx hash from MetaMask:", tx.hash);
+        localStorage.setItem("pendingTx", tx.hash);
+      })
+      .catch((err) => {
+        console.error("❌ Tx failed or user rejected:", err);
+        localStorage.removeItem("pendingPoll");
+        localStorage.removeItem("newPollPending");
+      });
 
-    // Exit immediately — let resume happen after reload
+    console.log("🏃 Exiting createPoll early (to let reload handle post-tx)");
+
+    // No need to return txHash — it might not be available yet
     return;
   } catch (error) {
-    console.error("createPoll error:", error);
+    console.error("💥 createPoll error:", error);
     reportError(error);
     return Promise.reject(error);
   }
