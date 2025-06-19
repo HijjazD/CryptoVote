@@ -100,6 +100,42 @@ const getEthereumContract = async (withSigner = true) => {
   }
 };
 
+const connectWallet = async () => {
+  try {
+    const providerSource = await getWalletProvider(); // can be WalletConnect or MetaMask
+    const provider = new BrowserProvider(providerSource);
+    signer = await provider.getSigner();
+    const address = await signer.getAddress();
+
+    store.dispatch(setWallet(address));
+
+    // ✅ Add listeners if using WalletConnect (e.g. MetaMask mobile)
+    if (providerSource?.on && providerSource.isWalletConnect) {
+      providerSource.on("accountsChanged", (accounts) => {
+        const address = accounts?.[0] || "";
+        store.dispatch(setWallet(address));
+      });
+
+      providerSource.on("disconnect", () => {
+        store.dispatch(setWallet(""));
+        alert("Wallet disconnected.");
+      });
+
+      providerSource.on("chainChanged", (chainId) => {
+        const decimalChain = parseInt(chainId, 16);
+        if (decimalChain !== CHAIN_ID) {
+          alert("Please switch to Sepolia network.");
+      }
+});
+
+    }
+
+    return address;
+  } catch (err) {
+    console.error("Error connecting wallet:", err);
+    throw err;
+  }
+};
 
 const checkWallet = async () => {
   try {
@@ -130,6 +166,7 @@ const checkWallet = async () => {
   }
 };
 
+
 const createPoll = async (PollParams) => {
   if (!walletProvider) {
     reportError("Wallet not connected");
@@ -139,10 +176,8 @@ const createPoll = async (PollParams) => {
   console.log("trying to createpoll...");
 
   try {
-    console.log("trying to get contract...");
     const contract = await getEthereumContract(true);
     const signer = contract.runner; // ethers v6
-    console.log("success in trying to getcontract...");
 
     const { image, title, description, startsAt, endsAt } = PollParams;
 
@@ -170,6 +205,8 @@ const createPoll = async (PollParams) => {
     return Promise.reject(error);
   }
 };
+
+
 
 const updatePoll = async (id, PollParams) => {
   if (!walletProvider) {
