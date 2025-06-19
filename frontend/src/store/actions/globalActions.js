@@ -34,4 +34,7 @@ export const globalActions = {
   setCurrentUser: (state, action) => {
     state.currentUser = action.payload;
   },
+  setProvider: (state, action) => {
+    state.provider = action.payload;
+  },
 };
