@@ -17,13 +17,19 @@ const HomePage = () => {
 
   useEffect(() => {
     const fetchPolls = async () => {
-      const data = await getPolls(); // wait for the resolved data
-      dispatch(setPolls(data));     // now dispatch actual poll objects
-    };
+      const data = await getPolls()
+      dispatch(setPolls(data))
+  
+      // ✅ If tx just confirmed and this is reload
+      if (localStorage.getItem("newPollPending") === "true") {
+        toast.success("Poll created successfully 👌")
+        localStorage.removeItem("newPollPending")
+      }
+    }
 
-    fetchPolls();
-    checkWallet();
-  }, [dispatch, setPolls]);
+  fetchPolls()
+  checkWallet()
+}, [dispatch, setPolls])
 
 
 
