@@ -179,12 +179,15 @@ const createPoll = async (PollParams) => {
 
     const { image, title, description, startsAt, endsAt } = PollParams;
 
+    // ✅ Send transaction — MetaMask will open
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
     console.log("tx sent:", tx.hash);
 
-    // ✅ Save hash in localStorage to recover later
-    localStorage.setItem("pendingTx", tx.hash);
+    // ✅ Save to localStorage immediately (in case MetaMask redirects the user)
+    localStorage.setItem("pendingTx", tx.hash); // for waiting later
+    localStorage.setItem("pendingPoll", JSON.stringify(PollParams)); // optional: save form data
 
+    // ✅ Return tx hash so caller can use it
     return tx.hash;
   } catch (error) {
     console.error("createPoll error:", error);
