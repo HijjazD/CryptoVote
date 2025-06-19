@@ -167,7 +167,6 @@ const checkWallet = async () => {
 };
 
 
-
 const createPoll = async (PollParams) => {
   if (!walletProvider) {
     reportError("Wallet not connected");
@@ -180,7 +179,12 @@ const createPoll = async (PollParams) => {
     console.log("success in getting contract")
     const { image, title, description, startsAt, endsAt } = PollParams;
     console.log("calling createPoll from smart contract")
-    const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
+    try {
+      const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
+    } catch (error) {
+      console.log("error in transaction")
+      return Promise.reject(error);
+    }
     console.log("success in calling createPoll from smart contract")
 
     console.log("await tx.wait()")
