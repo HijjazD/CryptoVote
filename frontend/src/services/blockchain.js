@@ -100,42 +100,45 @@ const getEthereumContract = async (withSigner = true) => {
   }
 };
 
-const connectWallet = async () => {
+const createPoll = async (PollParams) => {
+  if (!walletProvider) {
+    reportError("Wallet not connected");
+    return Promise.reject(new Error("Wallet not connected"));
+  }
+
+  console.log("trying to createpoll...");
+
   try {
-    const providerSource = await getWalletProvider(); // can be WalletConnect or MetaMask
-    const provider = new BrowserProvider(providerSource);
-    signer = await provider.getSigner();
-    const address = await signer.getAddress();
+    const contract = await getEthereumContract(true);
+    const signer = contract.runner; // ethers v6
 
-    store.dispatch(setWallet(address));
+    const { image, title, description, startsAt, endsAt } = PollParams;
 
-    // ✅ Add listeners if using WalletConnect (e.g. MetaMask mobile)
-    if (providerSource?.on && providerSource.isWalletConnect) {
-      providerSource.on("accountsChanged", (accounts) => {
-        const address = accounts?.[0] || "";
-        store.dispatch(setWallet(address));
-      });
+    console.log("populating transaction")
+    // ✅ Use the correct v6 pattern
+    const txRequest = await contract.createPoll.populateTransaction(
+      image, title, description, startsAt, endsAt
+    );
 
-      providerSource.on("disconnect", () => {
-        store.dispatch(setWallet(""));
-        alert("Wallet disconnected.");
-      });
+    console.log("sending transaction")
 
-      providerSource.on("chainChanged", (chainId) => {
-        const decimalChain = parseInt(chainId, 16);
-        if (decimalChain !== CHAIN_ID) {
-          alert("Please switch to Sepolia network.");
-      }
-});
+    const tx = await signer.sendTransaction(txRequest);
 
-    }
+    console.log("saving to localstorage")
 
-    return address;
-  } catch (err) {
-    console.error("Error connecting wallet:", err);
-    throw err;
+    // ✅ Save hash early before redirect
+    localStorage.setItem("pendingTx", tx.hash);
+    localStorage.setItem("newPollPending", "true");
+
+    console.log("tx sent:", tx.hash);
+    return tx.hash;
+  } catch (error) {
+    console.error("createPoll error:", error);
+    reportError(error);
+    return Promise.reject(error);
   }
 };
+
 
 const checkWallet = async () => {
   try {
