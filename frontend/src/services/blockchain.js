@@ -184,8 +184,9 @@ const createPoll = async (PollParams) => {
     console.log("tx sent:", tx.hash);
 
     // ✅ Save to localStorage immediately (in case MetaMask redirects the user)
-    localStorage.setItem("pendingTx", tx.hash); // for waiting later
-    localStorage.setItem("pendingPoll", JSON.stringify(PollParams)); // optional: save form data
+    localStorage.setItem("pendingTx", tx.hash);
+    localStorage.setItem("newPollPending", "true");  // use this flag after reload
+    localStorage.setItem("pendingPoll", JSON.stringify(PollParams));  // optional: keep form data
 
     // ✅ Return tx hash so caller can use it
     return tx.hash;
