@@ -12,6 +12,7 @@ import { store } from "../store";
 
 
 const CreatePoll = () => {
+  const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM'
   const { wallet, createModal } = useSelector((states) => states.globalStates)
   const dispatch = useDispatch()
   const { setCreateModal,setPolls } = globalActions
