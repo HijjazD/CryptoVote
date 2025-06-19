@@ -179,11 +179,12 @@ const createPoll = async (PollParams) => {
 
     const { image, title, description, startsAt, endsAt } = PollParams;
 
-    console.log("calling createPoll from smart contract");
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
     console.log("tx sent:", tx.hash);
 
-    // ✅ Save tx hash only, let UI handle waiting
+    // ✅ Save hash in localStorage to recover later
+    localStorage.setItem("pendingTx", tx.hash);
+
     return tx.hash;
   } catch (error) {
     console.error("createPoll error:", error);
@@ -191,6 +192,7 @@ const createPoll = async (PollParams) => {
     return Promise.reject(error);
   }
 };
+
 
 const updatePoll = async (id, PollParams) => {
   if (!walletProvider) {
