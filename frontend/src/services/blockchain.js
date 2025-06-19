@@ -180,29 +180,17 @@ const createPoll = async (PollParams) => {
     const { image, title, description, startsAt, endsAt } = PollParams;
 
     console.log("calling createPoll from smart contract");
-
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
     console.log("tx sent:", tx.hash);
 
-
-    // ✅ Use read-only provider to wait for confirmation (works even after reloads)
-    const provider = new JsonRpcProvider(APP_RPC_URL);
-    const receipt = await provider.waitForTransaction(tx.hash);
-    
-    console.log("Transaction confirmed:", receipt);
-
-    const polls = await getPolls();
-    store.dispatch(setPolls(polls));
-
-    return Promise.resolve(tx);
+    // ✅ Save tx hash only, let UI handle waiting
+    return tx.hash;
   } catch (error) {
     console.error("createPoll error:", error);
     reportError(error);
     return Promise.reject(error);
   }
 };
-
-
 
 const updatePoll = async (id, PollParams) => {
   if (!walletProvider) {
