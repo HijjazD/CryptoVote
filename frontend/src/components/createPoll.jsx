@@ -28,60 +28,74 @@ const CreatePoll = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("im trying to createpoll");
-    setError('');
+  // ✅ Check for pending tx in localStorage and resume
+  useEffect(() => {
+    const checkPendingTx = async () => {
+      const pendingTx = localStorage.getItem("pendingTx")
+      if (!pendingTx) return
+
+      try {
+        setLoading(true)
+        toast.loading("Resuming previous transaction...")
+
+        const provider = new JsonRpcProvider(APP_RPC_URL)
+        const receipt = await provider.waitForTransaction(pendingTx)
+        console.log("Recovered transaction confirmed:", receipt)
+
+        const polls = await getPolls()
+        store.dispatch(setPolls(polls))
+
+        toast.success("Poll created successfully 👌")
+      } catch (err) {
+        console.error("Recovered tx failed:", err)
+        toast.error("Transaction failed 🤯")
+      } finally {
+        localStorage.removeItem("pendingTx")
+        setLoading(false)
+        closeModal()
+      }
+    }
+
+    checkPendingTx()
+  }, [])
+
+ const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    console.log("im trying to createpoll")
 
     if (!wallet || wallet.length === 0) {
-      setError("Connect Wallet First!");
-      toast.error('Connect wallet first!');
-      return;
+      setError("Connect Wallet First!")
+      toast.error('Connect wallet first!')
+      return
     }
 
     if (!poll.image || !poll.title || !poll.description || !poll.startsAt || !poll.endsAt) {
-      toast.warning('Please fill in all required fields.');
-      return;
+      toast.warning('Please fill in all required fields.')
+      return
     }
 
-    poll.startsAt = new Date(poll.startsAt).getTime();
-    poll.endsAt = new Date(poll.endsAt).getTime();
+    poll.startsAt = new Date(poll.startsAt).getTime()
+    poll.endsAt = new Date(poll.endsAt).getTime()
 
     try {
-      setLoading(true);
+      setLoading(true)
 
-      await toast.promise(
-        (async () => {
-          // ✅ 1. Trigger tx and get hash
-          const txHash = await createPoll(poll);
-          console.log("txHash:", txHash);
+      // ✅ Get tx hash and save it to localStorage
+      const txHash = await createPoll(poll)
+      console.log("txHash:", txHash)
+      localStorage.setItem("pendingTx", txHash)
 
-          // ✅ 2. Close modal immediately (better UX)
-          closeModal();
+      // ✅ Close modal immediately
+      closeModal()
 
-          // ✅ 3. Wait for confirmation with read-only provider
-          const provider = new JsonRpcProvider(APP_RPC_URL);
-          const receipt = await provider.waitForTransaction(txHash);
-          console.log("Transaction confirmed:", receipt);
-
-          // ✅ 4. Refresh poll list
-          const polls = await getPolls();
-          store.dispatch(setPolls(polls));
-        })(),
-        {
-          pending: 'Waiting for transaction confirmation...',
-          success: 'Poll created successfully 👌',
-          error: 'Transaction failed 🤯',
-        }
-      );
+      // ✅ Wait for confirmation handled by useEffect
     } catch (error) {
-      console.error('Transaction error:', error);
-      setError(error?.message || 'Something went wrong.');
-    } finally {
-      setLoading(false);
+      console.error('Transaction error:', error)
+      setError(error?.message || 'Something went wrong.')
+      setLoading(false)
     }
-  };
-
+  }
 
 
   const handleChange = (e) => {
