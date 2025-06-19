@@ -173,40 +173,39 @@ const createPoll = async (PollParams) => {
     return Promise.reject(new Error("Wallet not connected"));
   }
 
-  console.log("trying to createpoll...");
+  console.log("triggering createPoll...");
 
   try {
-    const contract = await getEthereumContract(true);
-    const signer = contract.runner; // ethers v6
+    const provider = new ethers.BrowserProvider(walletProvider);
+    const signer = await provider.getSigner();
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
     const { image, title, description, startsAt, endsAt } = PollParams;
 
-    console.log("populating transaction")
-    // ✅ Use the correct v6 pattern
-    const txRequest = await contract.createPoll.populateTransaction(
-      image, title, description, startsAt, endsAt
-    );
+    // Trigger MetaMask but DO NOT AWAIT — let it redirect immediately
+    const txPromise = contract.createPoll(image, title, description, startsAt, endsAt);
 
-    console.log("sending transaction")
-
-    const tx = await signer.sendTransaction(txRequest);
-
-    console.log("saving to localstorage")
-
-    // ✅ Save hash early before redirect
-    localStorage.setItem("pendingTx", tx.hash);
+    // Save poll data now in case MetaMask redirects
+    localStorage.setItem("pendingPoll", JSON.stringify(PollParams));
     localStorage.setItem("newPollPending", "true");
 
-    console.log("tx sent:", tx.hash);
-    return tx.hash;
+    // Try to get tx hash before redirect (MetaMask mobile might cut it off)
+    txPromise.then((tx) => {
+      localStorage.setItem("pendingTx", tx.hash);
+    }).catch((err) => {
+      console.error("User rejected or tx failed:", err);
+      localStorage.removeItem("pendingPoll");
+      localStorage.removeItem("newPollPending");
+    });
+
+    // Exit immediately — let resume happen after reload
+    return;
   } catch (error) {
     console.error("createPoll error:", error);
     reportError(error);
     return Promise.reject(error);
   }
 };
-
-
 
 const updatePoll = async (id, PollParams) => {
   if (!walletProvider) {
