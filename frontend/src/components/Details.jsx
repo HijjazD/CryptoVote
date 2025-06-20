@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { formatDate, truncate } from '../services/blockchain'
 import { MdModeEdit, MdDelete } from 'react-icons/md'
 import { globalActions } from '../store/globalSlices'
-import { toast } from 'react-toastify'
+import { toast } from 'react-hot-toast'
 import { useAuthStore } from "../store/authStore";
 const Details = ({poll}) => {
     
@@ -16,7 +16,7 @@ const Details = ({poll}) => {
     }
 
     const onPressContest = () => {
-        if (wallet === '') return toast.warning('Connect wallet first!')
+        if (wallet === '') return toast.error('Connect wallet first!')
         console.log("Opening contest modal")
         dispatch(setContestModal('scale-100'))
     }
