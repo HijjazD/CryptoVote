@@ -106,7 +106,7 @@ const createPoll = async (PollParams) => {
     reportError("Wallet not connected");
     return Promise.reject(new Error("Wallet not connected"));
   }
-
+  console.log("🔌 walletProvider:", walletProvider);
   console.log("📤 createPoll triggered with:", PollParams);
 
   try {
