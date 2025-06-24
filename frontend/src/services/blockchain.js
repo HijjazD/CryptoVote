@@ -112,35 +112,23 @@ const createPoll = async (PollParams) => {
 
     console.log("🚀 Sending tx via contract.createPoll...");
 
-    // Trigger MetaMask but DO NOT await — especially for mobile redirect
-    const txPromise = contract.createPoll(image, title, description, startsAt, endsAt);
+    // ✅ Await the transaction
+    const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
+    console.log("✅ Tx submitted:", tx.hash);
 
-    // Store poll data in case page reloads
-    localStorage.setItem("pendingPoll", JSON.stringify(PollParams));
-    localStorage.setItem("newPollPending", "true");
+    // Optional: you can also wait for it to be mined
+    const receipt = await tx.wait();
+    console.log("✅ Tx confirmed in block:", receipt.blockNumber);
 
-    // Try to get tx hash before MetaMask redirects (on desktop it works)
-    txPromise
-      .then((tx) => {
-        console.log("✅ Tx hash from MetaMask:", tx.hash);
-        localStorage.setItem("pendingTx", tx.hash);
-      })
-      .catch((err) => {
-        console.error("❌ Tx failed or user rejected:", err);
-        localStorage.removeItem("pendingPoll");
-        localStorage.removeItem("newPollPending");
-      });
-
-    console.log("🏃 Exiting createPoll early (to let reload handle post-tx)");
-
-    // No need to return txHash — it might not be available yet
-    return;
+    return receipt; // or tx.hash
   } catch (error) {
     console.error("💥 createPoll error:", error);
     reportError(error);
     return Promise.reject(error);
   }
 };
+
+
 
 const updatePoll = async (id, PollParams) => {
   if (!walletProvider) {
