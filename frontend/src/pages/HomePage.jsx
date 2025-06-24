@@ -19,43 +19,13 @@ const HomePage = () => {
   const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM';
 
   useEffect(() => {
-    const fetchPolls = async () => {
-      const data = await getPolls();
-      dispatch(setPolls(data));
+    const init = async () => {
+      await checkWallet(); // restore wallet session
+      const polldata = await getPolls(); // get polls after wallet restored
+      dispatch(setPolls(polldata));
     };
-
-    const resumePendingTx = async () => {
-      const pendingTx = localStorage.getItem('pendingTx');
-      const isNewPoll = localStorage.getItem('newPollPending');
-
-      if (!pendingTx || isNewPoll !== 'true') return;
-
-      try {
-        toast.loading('Waiting for transaction confirmation...');
-        const provider = new JsonRpcProvider(APP_RPC_URL);
-        const receipt = await provider.waitForTransaction(pendingTx);
-        console.log('Confirmed tx:', receipt);
-
-        toast.dismiss();
-        toast.success('Poll created successfully 👌');
-
-        // ✅ Refresh polls again now that new poll is confirmed
-        const updatedPolls = await getPolls();
-        dispatch(setPolls(updatedPolls));
-      } catch (err) {
-        console.error('Tx confirmation failed:', err);
-        toast.dismiss();
-        toast.error('Poll creation failed 🤯');
-      } finally {
-        // ✅ Clean up
-        localStorage.removeItem('pendingTx');
-        localStorage.removeItem('newPollPending');
-      }
-    };
-
-    fetchPolls();
-    resumePendingTx();
-    checkWallet();
+  
+    init();
   }, [dispatch, setPolls]);
 
   return (
