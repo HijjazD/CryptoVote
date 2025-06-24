@@ -12,14 +12,22 @@ const { setWallet, setPolls, setPoll,setContestants,setProvider } = globalAction
 let walletProvider = null;
 let signer = null;
 
-const MMSDK = new MetaMaskSDK({
-  dappMetadata: {
-    name: 'CryptoVote',
-    url: 'https://www.cryptovote.online',
-  },
-  injectProvider: true,
-  storage: { enabled: true }, // ensures session is restored
-});
+
+let MMSDKInstance;
+
+const getFreshMMSDK = () => {
+  MMSDKInstance = new MetaMaskSDK({
+    dappMetadata: {
+      name: 'CryptoVote',
+      url: 'https://www.cryptovote.online',
+    },
+    injectProvider: true,
+    storage: { enabled: true },
+  });
+
+  return MMSDKInstance;
+};
+
 
 export const getAddress = async () => {
   const provider = new JsonRpcProvider(APP_RPC_URL); // read-only
@@ -39,6 +47,7 @@ const getEthereumContract = async (withSigner = true) => {
     // ✅ Log signer address here
     const address = await signer.getAddress();
     console.log("👤 Signer address:", address);
+
     return new Contract(contractAddress, contractAbi, signer);
   } else {
     // Read-only provider (e.g., Alchemy)
@@ -47,48 +56,32 @@ const getEthereumContract = async (withSigner = true) => {
   }
 };
 
-const waitForProviderReady = async () => {
-  return new Promise((resolve, reject) => {
-    let retries = 0;
-
-    const checkReady = () => {
-      const provider = MMSDK.getProvider();
-      if (provider && provider.isMetaMask && provider.request) {
-        walletProvider = provider;
-        return resolve(provider);
-      }
-
-      if (retries > 10) {
-        return reject(new Error("MetaMask SDK provider not ready"));
-      }
-
-      retries++;
-      setTimeout(checkReady, 300);
-    };
-
-    checkReady();
-  });
-};
 
 
 // --- Connect Wallet ---
 const connectWallet = async () => {
   try {
-    const ethereum = await waitForProviderReady();
-
-    if (!ethereum) throw new Error("MetaMask not available");
+    const sdk = getFreshMMSDK();
+    const ethereum = sdk.getProvider();
 
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+
     const provider = new BrowserProvider(ethereum);
     signer = await provider.getSigner();
     const address = await signer.getAddress();
 
     walletProvider = ethereum;
     store.dispatch(setWallet(address));
-
     return address;
   } catch (err) {
     console.error("❌ Error connecting wallet:", err);
+
+    // 👇 Hard reset on decryption failure
+    if (err.message?.includes('ghash tag')) {
+      localStorage.clear();
+      location.reload();
+    }
+
     throw err;
   }
 };
@@ -96,9 +89,9 @@ const connectWallet = async () => {
 // --- Restore Wallet Session ---
 const checkWallet = async () => {
   try {
-    const ethereum = await waitForProviderReady();
+    const sdk = getFreshMMSDK();
+    const ethereum = sdk.getProvider();
 
-    if (!ethereum) throw new Error("MetaMask not available");
 
     const accounts = await ethereum.request({ method: "eth_accounts" });
 
@@ -123,6 +116,7 @@ const checkWallet = async () => {
     return null;
   }
 };
+
 
 const createPoll = async (PollParams) => {
   if (!walletProvider) {
