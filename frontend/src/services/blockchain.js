@@ -56,17 +56,36 @@ const getEthereumContract = async (withSigner = true) => {
   }
 };
 
+const waitForProviderReady = async (maxRetries = 10, delay = 300) => {
+  return new Promise((resolve, reject) => {
+    const sdk = getFreshMMSDK();
+
+    const attempt = () => {
+      const ethereum = sdk.getProvider();
+
+      if (ethereum && ethereum.isMetaMask && ethereum.request) {
+        walletProvider = ethereum;
+        resolve(ethereum);
+      } else if (maxRetries <= 0) {
+        reject(new Error("MetaMask SDK provider not ready"));
+      } else {
+        maxRetries--;
+        setTimeout(attempt, delay);
+      }
+    };
+
+    attempt();
+  });
+};
+
 
 
 // --- Connect Wallet ---
 const connectWallet = async () => {
   try {
-    const sdk = getFreshMMSDK();
-    console.log("sdk: ", sdk)
-    const ethereum = sdk.getProvider();
+    const ethereum = await waitForProviderReady();
 
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-
     const provider = new BrowserProvider(ethereum);
     signer = await provider.getSigner();
     const address = await signer.getAddress();
@@ -77,7 +96,6 @@ const connectWallet = async () => {
   } catch (err) {
     console.error("❌ Error connecting wallet:", err);
 
-    // 👇 Hard reset on decryption failure
     if (err.message?.includes('ghash tag')) {
       localStorage.clear();
       location.reload();
@@ -90,9 +108,7 @@ const connectWallet = async () => {
 // --- Restore Wallet Session ---
 const checkWallet = async () => {
   try {
-    const sdk = getFreshMMSDK();
-    const ethereum = sdk.getProvider();
-
+    const ethereum = await waitForProviderReady();
 
     const accounts = await ethereum.request({ method: "eth_accounts" });
 
@@ -102,7 +118,6 @@ const checkWallet = async () => {
 
       store.dispatch(setWallet(address));
       store.dispatch(setProvider(null));
-
       console.log("🔁 Session restored:", address);
       return address;
     } else {
