@@ -62,6 +62,7 @@ const getEthereumContract = async (withSigner = true) => {
 const connectWallet = async () => {
   try {
     const sdk = getFreshMMSDK();
+    console.log("sdk: ", sdk)
     const ethereum = sdk.getProvider();
 
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
