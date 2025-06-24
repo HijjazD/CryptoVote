@@ -21,10 +21,6 @@ const MMSDK = new MetaMaskSDK({
   storage: { enabled: true }, // ensures session is restored
 });
 
-const ethereum = MMSDK.getProvider();
-
-
-
 export const getAddress = async () => {
   const provider = new JsonRpcProvider(APP_RPC_URL); // read-only
   const code = await provider.getCode(contractAddress);
@@ -51,6 +47,8 @@ const getEthereumContract = async (withSigner = true) => {
 // --- Connect Wallet ---
 const connectWallet = async () => {
   try {
+    const ethereum = MMSDK.getProvider(); // moved inside the function
+
     if (!ethereum) throw new Error("MetaMask not available");
 
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
@@ -58,27 +56,31 @@ const connectWallet = async () => {
     signer = await provider.getSigner();
     const address = await signer.getAddress();
 
+    walletProvider = ethereum;
     store.dispatch(setWallet(address));
+
     return address;
   } catch (err) {
-    console.error("Error connecting wallet:", err);
+    console.error("❌ Error connecting wallet:", err);
     throw err;
   }
 };
 
-// ✅ Restore wallet on refresh
+// --- Restore Wallet Session ---
 const checkWallet = async () => {
   try {
+    const ethereum = MMSDK.getProvider(); // moved inside the function
+
     if (!ethereum) throw new Error("MetaMask not available");
 
     const accounts = await ethereum.request({ method: "eth_accounts" });
 
     if (accounts && accounts.length > 0) {
       const address = accounts[0];
+      walletProvider = ethereum;
 
-      // Restore into Redux
       store.dispatch(setWallet(address));
-      store.dispatch(setProvider(null)); // don't store full provider
+      store.dispatch(setProvider(null));
 
       console.log("🔁 Session restored:", address);
       return address;
