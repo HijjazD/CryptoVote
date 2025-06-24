@@ -12,21 +12,23 @@ const { setWallet, setPolls, setPoll,setContestants,setProvider } = globalAction
 let walletProvider = null;
 let signer = null;
 
+let MMSDKInstance = null;
 
-let MMSDKInstance;
-
-const getFreshMMSDK = () => {
-  MMSDKInstance = new MetaMaskSDK({
-    dappMetadata: {
-      name: 'CryptoVote',
-      url: 'https://www.cryptovote.online',
-    },
-    injectProvider: true,
-    storage: { enabled: true },
-  });
+const initSDK = () => {
+  if (!MMSDKInstance) {
+    MMSDKInstance = new MetaMaskSDK({
+      dappMetadata: {
+        name: 'CryptoVote',
+        url: 'https://www.cryptovote.online',
+      },
+      injectProvider: true,
+      storage: { enabled: true },
+    });
+  }
 
   return MMSDKInstance;
 };
+
 
 
 export const getAddress = async () => {
@@ -57,9 +59,9 @@ const getEthereumContract = async (withSigner = true) => {
 };
 
 const waitForProviderReady = async (maxRetries = 10, delay = 300) => {
-  return new Promise((resolve, reject) => {
-    const sdk = getFreshMMSDK();
+  const sdk = initSDK();
 
+  return new Promise((resolve, reject) => {
     const attempt = () => {
       const ethereum = sdk.getProvider();
 
@@ -79,13 +81,16 @@ const waitForProviderReady = async (maxRetries = 10, delay = 300) => {
 };
 
 
-
 // --- Connect Wallet ---
 const connectWallet = async () => {
   try {
-    const ethereum = await waitForProviderReady();
+    const sdk = initSDK();
+    const ethereum = sdk.getProvider();
+
+    if (!ethereum) throw new Error("MetaMask provider not available");
 
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+
     const provider = new BrowserProvider(ethereum);
     signer = await provider.getSigner();
     const address = await signer.getAddress();
@@ -105,10 +110,14 @@ const connectWallet = async () => {
   }
 };
 
+
 // --- Restore Wallet Session ---
 const checkWallet = async () => {
   try {
-    const ethereum = await waitForProviderReady();
+    const sdk = initSDK();
+    const ethereum = sdk.getProvider();
+
+    if (!ethereum) throw new Error("MetaMask provider not available");
 
     const accounts = await ethereum.request({ method: "eth_accounts" });
 
@@ -134,12 +143,15 @@ const checkWallet = async () => {
 };
 
 
+
+
 const createPoll = async (PollParams) => {
   if (!walletProvider) {
     reportError("Wallet not connected");
     return Promise.reject(new Error("Wallet not connected"));
   }
   console.log("🔌 walletProvider:", walletProvider);
+
   console.log("📤 createPoll triggered with:", PollParams);
 
   try {
