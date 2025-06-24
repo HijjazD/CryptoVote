@@ -36,6 +36,9 @@ const getEthereumContract = async (withSigner = true) => {
     }
     const provider = new BrowserProvider(walletProvider);
     signer = await provider.getSigner();
+    // ✅ Log signer address here
+    const address = await signer.getAddress();
+    console.log("👤 Signer address:", address);
     return new Contract(contractAddress, contractAbi, signer);
   } else {
     // Read-only provider (e.g., Alchemy)
