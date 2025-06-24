@@ -47,10 +47,34 @@ const getEthereumContract = async (withSigner = true) => {
   }
 };
 
+const waitForProviderReady = async () => {
+  return new Promise((resolve, reject) => {
+    let retries = 0;
+
+    const checkReady = () => {
+      const provider = MMSDK.getProvider();
+      if (provider && provider.isMetaMask && provider.request) {
+        walletProvider = provider;
+        return resolve(provider);
+      }
+
+      if (retries > 10) {
+        return reject(new Error("MetaMask SDK provider not ready"));
+      }
+
+      retries++;
+      setTimeout(checkReady, 300);
+    };
+
+    checkReady();
+  });
+};
+
+
 // --- Connect Wallet ---
 const connectWallet = async () => {
   try {
-    const ethereum = MMSDK.getProvider(); // moved inside the function
+    const ethereum = await waitForProviderReady();
 
     if (!ethereum) throw new Error("MetaMask not available");
 
@@ -72,7 +96,7 @@ const connectWallet = async () => {
 // --- Restore Wallet Session ---
 const checkWallet = async () => {
   try {
-    const ethereum = MMSDK.getProvider(); // moved inside the function
+    const ethereum = await waitForProviderReady();
 
     if (!ethereum) throw new Error("MetaMask not available");
 
@@ -99,7 +123,6 @@ const checkWallet = async () => {
     return null;
   }
 };
-
 
 const createPoll = async (PollParams) => {
   if (!walletProvider) {
