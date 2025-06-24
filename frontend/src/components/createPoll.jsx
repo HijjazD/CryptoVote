@@ -28,42 +28,50 @@ const CreatePoll = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
-
-  if (!wallet || wallet.length === 0) {
-    setError('Connect Wallet First!');
-    toast.error('Connect wallet first!');
-    return;
-  }
-
-  if (!poll.image || !poll.title || !poll.description || !poll.startsAt || !poll.endsAt) {
-    toast.warning('Please fill in all required fields.');
-    return;
-  }
-
-  poll.startsAt = new Date(poll.startsAt).getTime();
-  poll.endsAt = new Date(poll.endsAt).getTime();
-
-  try {
-    setLoading(true);
-
-    createPoll(poll);
-
-    // ✅ Close modal and reload
-    closeModal();
-    window.location.reload(); // will resume via localStorage in HomePage
-  } catch// ✅ Just trigger createPoll (no await needed now)
-     (error) {
-    console.error('Transaction error:', error);
-    setError(error?.message || 'Something went wrong.');
-    setLoading(false);
-  }
-};
-
-
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+  
+    if (!wallet || wallet.length === 0) {
+      setError('Connect Wallet First!');
+      toast.error('Connect wallet first!');
+      return;
+    }
+  
+    if (!poll.image || !poll.title || !poll.description || !poll.startsAt || !poll.endsAt) {
+      toast.warning('Please fill in all required fields.');
+      return;
+    }
+  
+    try {
+      setLoading(true);
+      toast.loading('Creating poll...');
+  
+      const pollData = {
+        ...poll,
+        startsAt: new Date(poll.startsAt).getTime(),
+        endsAt: new Date(poll.endsAt).getTime(),
+      };
+  
+      await createPoll(pollData); // ✅ await is now reliable
+  
+      toast.dismiss();
+      toast.success('Poll created successfully!');
+  
+      // ✅ Fetch updated polls
+      const updatedPolls = await getPolls();
+      dispatch(setPolls(updatedPolls));
+  
+      closeModal();
+    } catch (error) {
+      toast.dismiss();
+      console.error('Transaction error:', error);
+      setError(error?.message || 'Something went wrong.');
+      toast.error('Poll creation failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target
