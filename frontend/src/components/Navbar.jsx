@@ -1,35 +1,68 @@
 import { Link } from "react-router-dom";
-import React from "react";
+import React,{useEffect} from "react";
 import { connectWallet } from "../services/blockchain";
 import { truncate } from "../utils/helper";
-import { useSelector } from "react-redux";
+import { useSelector,useDispatch } from "react-redux";
 import { useAuthStore } from "../store/authStore";
 import { toast } from 'react-hot-toast';
+import { globalActions } from '../store/globalSlices';
+
+//wagmi
+import { useConnect, useAccount, useDisconnect } from 'wagmi';
+import { MetaMaskConnector } from 'wagmi/connectors/metaMask';
 
 const Navbar = () => {
-  const { wallet } = useSelector((states) => states.globalStates)
-  const { user, claimToken , setUser} = useAuthStore();
-  const handleClaimToken = async () => {
-  if (!wallet) {
-    toast.error("Please connect your wallet first");
-    return;
-  }
+  const dispatch = useDispatch();
+  const { setWallet } = globalActions;
+  const { wallet } = useSelector((states) => states.globalStates);
+  const { user, claimToken, setUser } = useAuthStore();
 
-  const loadingToast = toast.loading("Claiming token...");
+  const { connectAsync } = useConnect();
+  const { address, isConnected } = useAccount();
+
+  // ✅ Update Redux store on wallet change
+  useEffect(() => {
+    if (isConnected && address) {
+      dispatch(setWallet(address));
+    }
+  }, [address, isConnected, dispatch, setWallet]);
+
+  const handleConnectWallet = async () => {
     try {
-      await claimToken(wallet, user._id);
-      toast.success("Token claimed successfully!", { id: loadingToast });
-
-      // ✅ Update local state so button disappears immediately
-      setUser({ ...user, hasClaim: true });
-    } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to claim token", {
-        id: loadingToast,
+      const { account } = await connectAsync({
+        connector: new MetaMaskConnector(),
       });
+      dispatch(setWallet(account));
+    } catch (error) {
+      console.error("Wallet connect error:", error);
+      toast.error("Failed to connect wallet");
+    }
+  };
+
+  const handleClaimToken = async () => {
+    if (!wallet) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    const loadingToast = toast.loading("Claiming token...");
+      console.log("claiming wallet using :", wallet)
+      try {
+        await claimToken(wallet, user._id);
+        toast.success("Token claimed successfully!", { id: loadingToast });
+
+        // ✅ Update local state so button disappears immediately
+        setUser({ ...user, hasClaim: true });
+      } catch (error) {
+        toast.error(error?.response?.data?.message || "Failed to claim token", {
+          id: loadingToast,
+        });
     }
   };
   return (
     <div>
+      
+
       <nav
         className="h-[80px] flex justify-between items-center border border-gray-400 
         px-5 rounded-full"
@@ -51,7 +84,7 @@ const Navbar = () => {
             className="h-[48px] w-[130px] 
             sm:w-[148px] px-3 rounded-full text-sm font-bold
             transition-all duration-300 bg-[#1B5CFE] hover:bg-blue-300"
-            onClick={connectWallet}
+            onClick={handleConnectWallet}
           >
             Connect wallet
           </button>
