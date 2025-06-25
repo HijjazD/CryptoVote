@@ -15,7 +15,7 @@ let signer = null;
 let MMSDKInstance = null;
 
 // Initialize MetaMask SDK only once
-export const initSDK = () => {
+const initSDK = () => {
   if (!MMSDKInstance) {
     MMSDKInstance = new MetaMaskSDK({
       dappMetadata: {
@@ -53,7 +53,7 @@ const waitForProviderReady = async (maxRetries = 10, delay = 300) => {
 };
 
 // Read-only contract instance
-export const getAddress = async () => {
+const getAddress = async () => {
   const provider = new JsonRpcProvider(APP_RPC_URL);
   const code = await provider.getCode(contractAddress);
   return code;
@@ -76,7 +76,7 @@ const getEthereumContract = async (withSigner = true) => {
 };
 
 // --- Connect Wallet ---
-export const connectWallet = async () => {
+const connectWallet = async () => {
   try {
     const ethereum = await waitForProviderReady();
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
@@ -101,7 +101,7 @@ export const connectWallet = async () => {
 };
 
 // --- Restore Wallet Session ---
-export const checkWallet = async () => {
+const checkWallet = async () => {
   try {
     const ethereum = await waitForProviderReady();
     const accounts = await ethereum.request({ method: "eth_accounts" });
@@ -128,7 +128,7 @@ export const checkWallet = async () => {
 };
 
 // --- Create Poll ---
-export const createPoll = async (PollParams) => {
+const createPoll = async (PollParams) => {
   try {
     await waitForProviderReady();
 
