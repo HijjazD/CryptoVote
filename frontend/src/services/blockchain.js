@@ -14,7 +14,8 @@ let signer = null;
 
 let MMSDKInstance = null;
 
-const initSDK = () => {
+// Initialize MetaMask SDK only once
+export const initSDK = () => {
   if (!MMSDKInstance) {
     MMSDKInstance = new MetaMaskSDK({
       dappMetadata: {
@@ -25,39 +26,10 @@ const initSDK = () => {
       storage: { enabled: true },
     });
   }
-
   return MMSDKInstance;
 };
 
-
-
-export const getAddress = async () => {
-  const provider = new JsonRpcProvider(APP_RPC_URL); // read-only
-  const code = await provider.getCode(contractAddress);
-  return code;
-};
-
-
-// Updated for ethers v6
-const getEthereumContract = async (withSigner = true) => {
-  if (withSigner) {
-    if (!walletProvider) {
-      throw new Error("Wallet not connected. Call connectWallet() first.");
-    }
-    const provider = new BrowserProvider(walletProvider);
-    signer = await provider.getSigner();
-    // ✅ Log signer address here
-    const address = await signer.getAddress();
-    console.log("👤 Signer address:", address);
-
-    return new Contract(contractAddress, contractAbi, signer);
-  } else {
-    // Read-only provider (e.g., Alchemy)
-    const provider = new JsonRpcProvider(APP_RPC_URL);
-    return new Contract(contractAddress, contractAbi, provider);
-  }
-};
-
+// Ensure provider is ready
 const waitForProviderReady = async (maxRetries = 10, delay = 300) => {
   const sdk = initSDK();
 
@@ -80,15 +52,33 @@ const waitForProviderReady = async (maxRetries = 10, delay = 300) => {
   });
 };
 
+// Read-only contract instance
+export const getAddress = async () => {
+  const provider = new JsonRpcProvider(APP_RPC_URL);
+  const code = await provider.getCode(contractAddress);
+  return code;
+};
+
+// Get contract with signer or without
+const getEthereumContract = async (withSigner = true) => {
+  if (withSigner) {
+    await waitForProviderReady();
+    const provider = new BrowserProvider(walletProvider);
+    signer = await provider.getSigner();
+    const address = await signer.getAddress();
+    console.log("👤 Signer address:", address);
+
+    return new Contract(contractAddress, contractAbi, signer);
+  } else {
+    const provider = new JsonRpcProvider(APP_RPC_URL);
+    return new Contract(contractAddress, contractAbi, provider);
+  }
+};
 
 // --- Connect Wallet ---
-const connectWallet = async () => {
+export const connectWallet = async () => {
   try {
-    const sdk = initSDK();
-    const ethereum = sdk.getProvider();
-
-    if (!ethereum) throw new Error("MetaMask provider not available");
-
+    const ethereum = await waitForProviderReady();
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
 
     const provider = new BrowserProvider(ethereum);
@@ -110,15 +100,10 @@ const connectWallet = async () => {
   }
 };
 
-
 // --- Restore Wallet Session ---
-const checkWallet = async () => {
+export const checkWallet = async () => {
   try {
-    const sdk = initSDK();
-    const ethereum = sdk.getProvider();
-
-    if (!ethereum) throw new Error("MetaMask provider not available");
-
+    const ethereum = await waitForProviderReady();
     const accounts = await ethereum.request({ method: "eth_accounts" });
 
     if (accounts && accounts.length > 0) {
@@ -142,40 +127,35 @@ const checkWallet = async () => {
   }
 };
 
-
-
-
-const createPoll = async (PollParams) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
-  }
-  console.log("🔌 walletProvider:", walletProvider);
-
-  console.log("📤 createPoll triggered with:", PollParams);
-
+// --- Create Poll ---
+export const createPoll = async (PollParams) => {
   try {
+    await waitForProviderReady();
+
+    if (!walletProvider) {
+      throw new Error("Wallet not connected");
+    }
+
+    console.log("🔌 walletProvider:", walletProvider);
+    console.log("📤 createPoll triggered with:", PollParams);
+
     const contract = await getEthereumContract(true);
     const { image, title, description, startsAt, endsAt } = PollParams;
 
     console.log("🚀 Sending tx via contract.createPoll...");
-
-    // ✅ Await the transaction
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
     console.log("✅ Tx submitted:", tx.hash);
 
-    // Optional: you can also wait for it to be mined
     const receipt = await tx.wait();
     console.log("✅ Tx confirmed in block:", receipt.blockNumber);
 
-    return receipt; // or tx.hash
+    return receipt;
   } catch (error) {
     console.error("💥 createPoll error:", error);
     reportError(error);
     return Promise.reject(error);
   }
 };
-
 
 
 const updatePoll = async (id, PollParams) => {
