@@ -30,10 +30,10 @@
     "react-datepicker": "^8.4.0",
     "zustand": "^5.0.4",
     "@metamask/sdk": "^0.33.0",
-    "@web3modal/ethereum": "^2.7.1",
-    "@web3modal/react": "^2.7.1",
-    "viem": "^2.31.4",
-    "wagmi": "^2.15.6"
+    "viem": "^1.17.0",
+    "wagmi": "^1.4.13",
+    "@web3modal/ethereum": "^2.4.2",
+    "@web3modal/react": "^2.4.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
