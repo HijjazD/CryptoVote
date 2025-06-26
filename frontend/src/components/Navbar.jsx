@@ -55,8 +55,8 @@ const Navbar = () => {
       </nav>
 
       {/* 👇 Token claim logic */}
-      {isConnected && user && user.hasClaim === false && (
-        <div className="flex justify-end mt-2 px-5">
+      <div className="flex justify-end mt-2 px-5">
+        {isConnected && user && user.hasClaim === false ? (
           <button
             onClick={handleClaimToken}
             className="w-[130px] sm:w-[148px] h-[40px] px-3 
@@ -67,8 +67,10 @@ const Navbar = () => {
           >
             Claim Token
           </button>
-        </div>
-      )}
+        ) : (
+          <appkit-network-button />
+        )}
+      </div>
     </div>
   )
 }
