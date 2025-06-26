@@ -1,56 +1,14 @@
-import { BrowserProvider, JsonRpcProvider, Contract, Wallet } from "ethers";
+import { JsonRpcProvider, Contract } from "ethers";
 import { store } from "../store";
 import { contractAbi, contractAddress } from "../constant/constant";
 import { globalActions } from "../store/globalSlices";
-import { MetaMaskSDK } from '@metamask/sdk';
+import { getWalletClient, getAccount} from '@wagmi/core';
+import { config } from "../config";
 
 const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM'
-const CHAIN_ID = 11155111; // Sepolia testnet
 
-const { setWallet, setPolls, setPoll,setContestants,setProvider } = globalActions;
+const { setWallet, setPoll,setContestants } = globalActions;
 
-let walletProvider = null;
-let signer = null;
-
-let MMSDKInstance = null;
-
-// Initialize MetaMask SDK only once
-const initSDK = () => {
-  if (!MMSDKInstance) {
-    MMSDKInstance = new MetaMaskSDK({
-      dappMetadata: {
-        name: 'CryptoVote',
-        url: 'https://www.cryptovote.online',
-      },
-      injectProvider: true,
-      storage: { enabled: true },
-    });
-  }
-  return MMSDKInstance;
-};
-
-// Ensure provider is ready
-const waitForProviderReady = async (maxRetries = 10, delay = 300) => {
-  const sdk = initSDK();
-
-  return new Promise((resolve, reject) => {
-    const attempt = () => {
-      const ethereum = sdk.getProvider();
-
-      if (ethereum && ethereum.isMetaMask && ethereum.request) {
-        walletProvider = ethereum;
-        resolve(ethereum);
-      } else if (maxRetries <= 0) {
-        reject(new Error("MetaMask SDK provider not ready"));
-      } else {
-        maxRetries--;
-        setTimeout(attempt, delay);
-      }
-    };
-
-    attempt();
-  });
-};
 
 // Read-only contract instance
 const getAddress = async () => {
@@ -59,14 +17,14 @@ const getAddress = async () => {
   return code;
 };
 
-// Get contract with signer or without
+// ✅ Get Contract
 const getEthereumContract = async (withSigner = true) => {
   if (withSigner) {
-    await waitForProviderReady();
-    const provider = new BrowserProvider(walletProvider);
-    signer = await provider.getSigner();
-    const address = await signer.getAddress();
-    console.log("👤 Signer address:", address);
+    const walletClient = await getWalletClient({ config });
+    if (!walletClient) throw new Error("Wallet not connected");
+
+    const provider = new JsonRpcProvider(walletClient.transport.url);
+    const signer = await provider.getSigner(walletClient.account.address);
 
     return new Contract(contractAddress, contractAbi, signer);
   } else {
@@ -75,95 +33,31 @@ const getEthereumContract = async (withSigner = true) => {
   }
 };
 
-// --- Connect Wallet ---
-const connectWallet = async () => {
-  try {
-    const ethereum = await waitForProviderReady();
-    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
 
-    const provider = new BrowserProvider(ethereum);
-    signer = await provider.getSigner();
-    const address = await signer.getAddress();
-
-    walletProvider = ethereum;
-    store.dispatch(setWallet(address));
-    return address;
-  } catch (err) {
-    console.error("❌ Error connecting wallet:", err);
-
-    if (err.message?.includes('ghash tag')) {
-      localStorage.clear();
-      location.reload();
-    }
-
-    throw err;
-  }
-};
-
-// --- Restore Wallet Session ---
-const checkWallet = async () => {
-  try {
-    const ethereum = await waitForProviderReady();
-    const accounts = await ethereum.request({ method: "eth_accounts" });
-
-    if (accounts && accounts.length > 0) {
-      const address = accounts[0];
-      walletProvider = ethereum;
-
-      store.dispatch(setWallet(address));
-      store.dispatch(setProvider(null));
-      console.log("🔁 Session restored:", address);
-      return address;
-    } else {
-      console.log("ℹ️ No session to restore");
-      store.dispatch(setWallet(""));
-      return null;
-    }
-  } catch (err) {
-    console.error("❌ checkWallet failed:", err);
-    store.dispatch(setWallet(""));
-    store.dispatch(setProvider(null));
-    return null;
-  }
-};
 
 // --- Create Poll ---
 const createPoll = async (PollParams) => {
   try {
-    await waitForProviderReady();
-
-    if (!walletProvider) {
-      throw new Error("Wallet not connected");
-    }
-
-    console.log("🔌 walletProvider:", walletProvider);
-    console.log("📤 createPoll triggered with:", PollParams);
-
     const contract = await getEthereumContract(true);
-    const { image, title, description, startsAt, endsAt } = PollParams;
 
-    console.log("🚀 Sending tx via contract.createPoll...");
+    const { image, title, description, startsAt, endsAt } = PollParams;
+    console.log('📤 Sending createPoll with:', PollParams);
+
     const tx = await contract.createPoll(image, title, description, startsAt, endsAt);
-    console.log("✅ Tx submitted:", tx.hash);
+    console.log('✅ Tx submitted:', tx.hash);
 
     const receipt = await tx.wait();
-    console.log("✅ Tx confirmed in block:", receipt.blockNumber);
+    console.log('✅ Tx confirmed:', receipt.blockNumber);
 
     return receipt;
-  } catch (error) {
-    console.error("💥 createPoll error:", error);
-    reportError(error);
-    return Promise.reject(error);
+  } catch (err) {
+    console.error('💥 createPoll error:', err);
+    throw err;
   }
 };
 
-
+// ✅ Update Poll
 const updatePoll = async (id, PollParams) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
-  }
-
   try {
     const contract = await getEthereumContract(true);
     const { image, title, description, startsAt, endsAt } = PollParams;
@@ -174,102 +68,85 @@ const updatePoll = async (id, PollParams) => {
     const poll = await getPoll(id);
     store.dispatch(setPoll(poll));
 
-    return Promise.resolve(tx);
+    return tx;
   } catch (error) {
     reportError(error);
-    return Promise.reject(error);
+    throw error;
   }
 };
 
-
+// ✅ Delete Poll
 const deletePoll = async (id) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
-  }
-
   try {
     const contract = await getEthereumContract(true);
     const tx = await contract.deletePoll(id);
-
     await tx.wait();
-    return Promise.resolve(tx);
+    return tx;
   } catch (error) {
     reportError(error);
-    return Promise.reject(error);
+    throw error;
   }
 };
 
-
+// ✅ Get All Polls
 const getPolls = async () => {
-  const contract = await getEthereumContract(false); // use read-only
+  const contract = await getEthereumContract(false);
   const polls = await contract.getPolls();
   return structurePolls(polls);
 };
 
-
-
+// ✅ Get Single Poll
 const getPoll = async (id) => {
   const contract = await getEthereumContract(false);
   const poll = await contract.getPoll(id);
-  return structurePolls([poll])[0]
+  return structurePolls([poll])[0];
 };
 
+// ✅ Contest in a Poll
 const contestPoll = async (id, name, image) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
-  }
-
   try {
     const contract = await getEthereumContract(true);
     const tx = await contract.contest(id, name, image);
-
     await tx.wait();
 
     const poll = await getPoll(id);
-    store.dispatch(setPoll(poll));
-
     const contestants = await getContestants(id);
+
+    store.dispatch(setPoll(poll));
     store.dispatch(setContestants(contestants));
 
-    return Promise.resolve(tx);
+    return tx;
   } catch (error) {
     reportError(error);
-    return Promise.reject(error);
+    throw error;
   }
 };
 
-
+// ✅ Vote Candidate
 const voteCandidate = async (id, cid) => {
-  if (!walletProvider) {
-    reportError("Wallet not connected");
-    return Promise.reject(new Error("Wallet not connected"));
-  }
-
   try {
     const contract = await getEthereumContract(true);
     const tx = await contract.vote(id, cid);
     await tx.wait();
 
     const poll = await getPoll(id);
-    store.dispatch(setPoll(poll));
-
     const contestants = await getContestants(id);
+
+    store.dispatch(setPoll(poll));
     store.dispatch(setContestants(contestants));
 
-    return Promise.resolve(tx);
+    return tx;
   } catch (error) {
     reportError(error);
-    return Promise.reject(error);
+    throw error;
   }
 };
 
-
+// ✅ Get Contestants for a Poll
 const getContestants = async (id) => {
   const contract = await getEthereumContract(false);
   const contestants = await contract.getContestants(id);
-  return structureContestants(contestants)
+  return structureContestants(contestants);
 };
 
 const structureContestants = (contestants) => 
@@ -361,8 +238,6 @@ const reportError = (error) => {
 };
 
 export { 
-  connectWallet, 
-  checkWallet, 
   createPoll, 
   getPolls, 
   getPoll, 
