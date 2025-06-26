@@ -20,8 +20,11 @@ const getAddress = async () => {
 // ✅ Get Contract
 const getEthereumContract = async (withSigner = true) => {
   if (withSigner) {
-    const walletClient = await getWalletClient({ config });
-    if (!walletClient) throw new Error("Wallet not connected");
+    const walletClient = await getWalletClient();
+
+    if (!walletClient?.account?.address || !walletClient?.transport?.url) {
+      throw new Error("Wallet client not ready. Please reconnect or wait a moment.");
+    }
 
     const provider = new JsonRpcProvider(walletClient.transport.url);
     const signer = await provider.getSigner(walletClient.account.address);
