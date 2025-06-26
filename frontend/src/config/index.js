@@ -7,7 +7,7 @@ export const projectId = '4234666a862ca5511dd22e000d2bb773'
 export const networks = [sepolia]
 
 export const wagmiAdapter = new WagmiAdapter({
-  storage: createStorage({ storage: cookieStorage }),
+  storage: createStorage({ storage: window.localStorage }),
   ssr: false, // you're not using SSR
   networks,
   projectId,
