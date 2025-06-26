@@ -2,7 +2,7 @@ import { JsonRpcProvider, Contract } from "ethers";
 import { store } from "../store";
 import { contractAbi, contractAddress } from "../constant/constant";
 import { globalActions } from "../store/globalSlices";
-import { getWalletClient, getAccount} from '@wagmi/core';
+import { getWalletClient, getAccount } from 'wagmi/actions';
 import { config } from "../config";
 
 const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM'
@@ -17,13 +17,13 @@ const getAddress = async () => {
   return code;
 };
 
-// ✅ Get Contract
+// ✅ Get Contract Instance
 const getEthereumContract = async (withSigner = true) => {
   if (withSigner) {
-    const walletClient = await getWalletClient();
+    const walletClient = await getWalletClient(config); 
 
     if (!walletClient?.account?.address || !walletClient?.transport?.url) {
-      throw new Error("Wallet client not ready. Please reconnect or wait a moment.");
+      throw new Error("⚠️ Wallet client not ready. Please reconnect.");
     }
 
     const provider = new JsonRpcProvider(walletClient.transport.url);
