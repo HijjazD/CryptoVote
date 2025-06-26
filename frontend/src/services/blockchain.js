@@ -3,7 +3,7 @@ import { store } from "../store";
 import { contractAbi, contractAddress } from "../constant/constant";
 import { globalActions } from "../store/globalSlices";
 import { getWalletClient, getAccount } from 'wagmi/actions';
-import { config } from "../config";
+import { wagmiAdapter } from '../config' 
 
 const APP_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/rSJ1WKfAB8oVr6HkTxKFB6UwhAj5TvLM'
 
@@ -20,14 +20,9 @@ const getAddress = async () => {
 // ✅ Get Contract Instance
 const getEthereumContract = async (withSigner = true) => {
   if (withSigner) {
-    const walletClient = await getWalletClient(config); 
+    const signer = await wagmiAdapter.getSigner(); // ✅ Reown gives you signer directly
 
-    if (!walletClient?.account?.address || !walletClient?.transport?.url) {
-      throw new Error("⚠️ Wallet client not ready. Please reconnect.");
-    }
-
-    const provider = new JsonRpcProvider(walletClient.transport.url);
-    const signer = await provider.getSigner(walletClient.account.address);
+    if (!signer) throw new Error("⚠️ Signer not ready. Please reconnect wallet.");
 
     return new Contract(contractAddress, contractAbi, signer);
   } else {
