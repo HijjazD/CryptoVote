@@ -54,23 +54,24 @@ const Navbar = () => {
 
       </nav>
 
-      {/* 👇 Token claim logic */}
-      <div className="flex justify-end mt-2 px-5">
-        {isConnected && user && user.hasClaim === false ? (
-          <button
-            onClick={handleClaimToken}
-            className="w-[130px] sm:w-[148px] h-[40px] px-3 
-              text-white text-[12px] md:text-[16px] font-semibold 
-              border border-gray-400 rounded-full 
-              bg-white/10 backdrop-blur-sm 
-              transition-all duration-300"
-          >
-            Claim Token
-          </button>
-        ) : (
+      {/* 👇 Token claim + network switch */}
+      {isConnected && (
+        <div className="flex flex-col items-end mt-2 px-5 space-y-2">
+          {user?.hasClaim === false && (
+            <button
+              onClick={handleClaimToken}
+              className="w-[130px] sm:w-[148px] h-[40px] px-3 
+                text-white text-[12px] md:text-[16px] font-semibold 
+                border border-gray-400 rounded-full 
+                bg-white/10 backdrop-blur-sm 
+                transition-all duration-300"
+            >
+              Claim Token
+            </button>
+          )}
           <appkit-network-button />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
