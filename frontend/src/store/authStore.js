@@ -37,6 +37,16 @@ export const useAuthStore = create((set) => ({
             throw error
         }
     },
+    guestsignup: async(email) => {
+        set({isLoading:true, error:null})
+        try {
+            const response = await axios.post(`${API_URL}/guest-signup`, {email})
+            set({user:response.data.user, isAuthenticated:true, isLoading:false, isCheckingAuth:false})
+        } catch (error) {
+            set({error:error.response.data.message || "Error signing up:", isLoading:false})
+            throw error
+        }
+    },
 
     verifyEmail: async (verificationCode) => {
         set({isLoading:true, error:null})
