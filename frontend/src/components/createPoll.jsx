@@ -57,7 +57,7 @@ const handleSubmit = async (e) => {
     const toastId = toast.loading('Creating poll...')
     try {
       setLoading(true)
-      await writeContract({
+      writeContract({
         address: contractAddress,
         abi: contractAbi,
         functionName: 'createPoll',
@@ -73,9 +73,7 @@ const handleSubmit = async (e) => {
       console.error('Poll creation error:', err)
       setError(err?.message || 'Something went wrong.')
       toast.error('Failed to create poll', { id: toastId })
-    } finally {
-      setLoading(false)
-    }
+    } 
   }
 
 
@@ -97,9 +95,17 @@ const handleSubmit = async (e) => {
       toast.dismiss()
       toast.success('Poll created successfully!')
       closeModal()
+      setLoading(false)
     }
   }, [isSuccess])
-
+  useEffect(() => {
+  if (writeError) {
+    toast.dismiss()
+    toast.error('Failed to create poll')
+    setError(writeError.message)
+    setLoading(false) 
+  }
+}, [writeError])
   return (
     <div
       className={`fixed top-0 left-0 w-screen h-screen flex items-center justify-center
