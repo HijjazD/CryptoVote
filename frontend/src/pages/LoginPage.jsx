@@ -51,15 +51,16 @@ const LoginPage = () => {
 
 
 	return (
-		<div className="min-h-screen flex flex-col items-center justify-center px-4">
-		    {/* Logo at the top */}
-		    <div className="mb-6">
-		      <img
-		        src="/assets/images/cryptovote.png"
-		        alt="CryptoVote Logo"
-		        className="w-[200px] h-[200px]"
-		      />
-		    </div>
+		<div className="min-h-screen relative flex items-center justify-center px-4">
+			{/* Positioned image */}
+			<img
+				src="/assets/images/cryptovote.png"
+				alt="CryptoVote Logo"
+				className="absolute top-20 w-[200px] h-[200px] "
+			/>
+
+			{/* Centered form */}
+			<div className="flex-grow flex items-center justify-center px-4">
 				
 				<motion.div 
 					initial={{ opacity: 0, y: 20 }}
@@ -134,14 +135,20 @@ const LoginPage = () => {
 					</div>
 
 					<div className='px-8 py-4 bg-gray-900 bg-opacity-50 flex justify-center'>
-						<p className='text-sm text-gray-400'>
-							Don't have an account?{" "}
+						 <p className='text-sm text-gray-400'>
+							Don't have a account?{" "}
 							<Link to='/signup' className="text-indigo-400 hover:underline">
-								Sign up
+							Sign up
+							</Link>
+							<br />
+							Or continue as a{" "}
+							<Link to='/guest-signup' className="text-indigo-400 hover:underline">
+							guest
 							</Link>
 						</p>
 					</div>
 				</motion.div>
+			</div>
 		</div>
 	)
 }
