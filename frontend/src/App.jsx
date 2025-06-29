@@ -2,6 +2,7 @@ import FloatingShape from "./components/FloatingShape"
 import { Routes, Route, Navigate } from "react-router-dom"
 import HomePage from "./pages/HomePage"
 import SignUpPage from "./pages/SignUpPage"
+import GuestSignUpPage from "./pages/GuestSignUp"
 import LoginPage from "./pages/LoginPage"
 import EmailVerificationPage from "./pages/EmailVerificationPage"
 import PassPage from "./pages/PassPage"
@@ -77,6 +78,12 @@ function App() {
           <Route path='/signup' element={
               <RedirectAuthenticatedUser>
                 <SignUpPage/>
+              </RedirectAuthenticatedUser>
+            }
+          />
+          <Route path='/guest-signup' element={
+              <RedirectAuthenticatedUser>
+                <GuestSignUpPage/>
               </RedirectAuthenticatedUser>
             }
           />
