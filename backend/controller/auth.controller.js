@@ -13,7 +13,7 @@ import bcryptjs from 'bcryptjs'
 dotenv.config()
 
 const PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY;
-const RPC_URL = process.env.GANACHE_RPC_URL;
+const RPC_URL = process.env.SEPOLIA_RPC_URL;
 const provider = new JsonRpcProvider(RPC_URL);
 const wallet = new Wallet(PRIVATE_KEY, provider);
 
@@ -540,7 +540,7 @@ export const claimToken = async(req, res) => {
 
         const tx = await wallet.sendTransaction({
             to: recipientAddress,
-            value: ethers.parseEther("0.002"), // amount of Ganache ETH to send
+            value: ethers.parseEther("0.0008"), 
         });
 
         await tx.wait();
