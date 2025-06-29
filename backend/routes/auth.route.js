@@ -1,6 +1,6 @@
 import express from "express"
 
-import { signup, savePass , login, logout, verifyEmail, forgotPassword, resetPassword, checkAuth, initPasskey, verifyPasskey, authPasskey, verifyAuthPasskey,sendVoteConfirmationEmail, claimToken } from "../controller/auth.controller.js";
+import { signup, guestsignup,savePass , login, logout, verifyEmail, forgotPassword, resetPassword, checkAuth, initPasskey, verifyPasskey, authPasskey, verifyAuthPasskey,sendVoteConfirmationEmail, claimToken } from "../controller/auth.controller.js";
 
 import { verifyToken } from "../middleware/verifyToken.js";
 
@@ -9,6 +9,8 @@ const router = express.Router();
 
 
 router.post("/signup", signup)
+
+router.post("/guest-signup", guestsignup)
 
 router.post("/save-pass", savePass)
 
