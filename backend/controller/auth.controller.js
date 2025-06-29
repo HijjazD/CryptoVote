@@ -13,7 +13,7 @@ import bcryptjs from 'bcryptjs'
 dotenv.config()
 
 const PRIVATE_KEY = process.env.FAUCET_PRIVATE_KEY;
-const RPC_URL = process.env.SEPOLIA_RPC_URL;
+const RPC_URL = process.env.GANACHE_RPC_URL;
 const provider = new JsonRpcProvider(RPC_URL);
 const wallet = new Wallet(PRIVATE_KEY, provider);
 
@@ -42,6 +42,58 @@ export const signup = async (req, res) => {
 
         const user = new User({
             studentMatric,
+            email,
+            verificationToken,
+            verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000 //24hrs
+        })
+
+        await user.save()
+
+
+        console.log("email sent to: ", user.email)
+        console.log("verification code: ", user.verificationToken)
+        await sendVerificationEmail(user.email, verificationToken)
+
+        res.status(201).json({
+            success: true,
+            message: "User created successfully",
+            user: {
+                ...user._doc,
+                password: undefined,
+            }
+        })
+
+        console.log("Email successfully sent to: ", user.email)
+    } catch (error) {
+        res.status(400).json({success:false, message: error.message})
+    }
+}
+
+export const guestsignup = async (req, res) => {
+    let { email } = req.body
+    try {
+        if(!email){
+            throw new Error("All fields are required")
+        }
+
+        email = email.trim()
+
+        const userAlreadyExist = await User.findOne({email})
+        if(userAlreadyExist) {
+            if(userAlreadyExist.isEmailVerified) {
+                return res.status(400).json({success:false, message:"User already exist"})
+            }else{
+                await User.findByIdAndDelete(userAlreadyExist._id)
+            }
+        }
+
+        const verificationToken = Math.floor(100000 + Math.random() * 900000).toString()
+
+        const username = email.split("@")[0]
+
+
+        const user = new User({
+            studentMatric: username,
             email,
             verificationToken,
             verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000 //24hrs
@@ -488,7 +540,7 @@ export const claimToken = async(req, res) => {
 
         const tx = await wallet.sendTransaction({
             to: recipientAddress,
-            value: ethers.parseEther("0.0008"), 
+            value: ethers.parseEther("0.002"), // amount of Ganache ETH to send
         });
 
         await tx.wait();
