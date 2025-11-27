@@ -38,6 +38,7 @@ export const useAuthStore = create((set) => ({
         }
     },
     guestsignup: async(email) => {
+		console.log("EMAIL SENT:", email) 
         set({isLoading:true, error:null})
         try {
             const response = await axios.post(`${API_URL}/guest-signup`, {email})
